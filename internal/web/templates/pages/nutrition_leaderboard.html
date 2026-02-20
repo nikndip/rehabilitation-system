@@ -1,0 +1,52 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Рейтинг сотрудников</div>
+    <div class="page-subtitle">Баллы питания и дисциплина соблюдения рациона.</div>
+  </div>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Сотрудник</th>
+        <th>Отдел</th>
+        <th>Баллы</th>
+        <th>Дней по плану</th>
+        <th>Соблюдение</th>
+        <th>Вода</th>
+        <th>Последняя отметка</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range $i, $row := .Leaderboard }}
+        <tr>
+          <td><span class="rank-badge">{{ add $i 1 }}</span></td>
+          <td>{{ $row.Name }}</td>
+          <td>{{ if $row.Department }}{{ $row.Department }}{{ else }}—{{ end }}</td>
+          <td>{{ $row.Points }}</td>
+          <td>{{ $row.Days }}</td>
+          <td>{{ $row.Compliance }}%</td>
+          <td>{{ $row.Hydration }}%</td>
+          <td>{{ $row.LastCheckin }}</td>
+        </tr>
+      {{ else }}
+        <tr>
+          <td colspan="8">
+            <div class="empty-state">
+              <div class="empty-title">Рейтинг пока пуст</div>
+              <div class="muted">Данные появятся после первых заполненных дней питания.</div>
+            </div>
+          </td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}
+
+{{ define "nutrition_leaderboard" }}
+  {{ template "base" . }}
+{{ end }}

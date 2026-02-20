@@ -1,0 +1,59 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Профиль питания</div>
+    <div class="page-subtitle">Персональные параметры и целевые ориентиры по питанию.</div>
+  </div>
+</div>
+
+<div class="grid cols-3">
+  <div class="card profile-overview">
+    <div class="profile-name">{{ if .User }}{{ .User.Name }}{{ else }}Сотрудник{{ end }}</div>
+    <div class="muted">{{ .Profile.Department }} · {{ .Profile.Position }}</div>
+    <div class="profile-meta">
+      <span class="badge">ID {{ .Profile.EmployeeID }}</span>
+      <span class="badge">Цель: восстановление</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Текущие цели</div>
+    </div>
+    <div class="info-list">
+      <div><strong>Цель питания:</strong> {{ .Profile.NutritionTarget }}</div>
+      <div><strong>Калорийность:</strong> {{ .Profile.DailyCalories }} ккал/день</div>
+      <div><strong>Вода:</strong> {{ .Profile.WaterTarget }}</div>
+      <div><strong>Режим:</strong> {{ .Profile.MealPattern }}</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Ограничения</div>
+    </div>
+    <div class="pill-list">
+      {{ range .Profile.Restrictions }}
+        <span class="pill">{{ . }}</span>
+      {{ else }}
+        <span class="pill">Не указано</span>
+      {{ end }}
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+  <div class="card-header">
+    <div class="card-title">Рекомендации на неделю</div>
+  </div>
+  <ul class="guide-list">
+    <li>Поддерживайте белок в каждом приеме пищи для стабильного восстановления.</li>
+    <li>Держите одинаковые интервалы между приемами пищи (3-4 часа).</li>
+    <li>Контролируйте вечерний прием углеводов и не перегружайте ужин.</li>
+  </ul>
+</div>
+{{ end }}
+
+{{ define "nutrition_profile" }}
+  {{ template "base" . }}
+{{ end }}

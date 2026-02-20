@@ -1,0 +1,32 @@
+{{ define "content" }}
+<div class="module-hub">
+  <div class="module-hub-header">
+    <span class="panel-badge">Реабилитация сотрудников</span>
+    <h1>Выберите модуль</h1>
+    <p>
+      {{ if .User }}{{ .User.Name }},{{ end }} система разделена на независимые модули.
+      Тренировки и питание ведутся отдельно.
+    </p>
+  </div>
+
+  <div class="module-grid">
+    <a class="module-tile module-tile-training" href="/training">
+      <span class="module-tile-label">Модуль 01</span>
+      <h2 class="module-tile-title">Тренировки</h2>
+      <p class="module-tile-text">План тренировок, упражнения, сессии и контроль физической нагрузки.</p>
+      <span class="module-tile-action">Открыть модуль</span>
+    </a>
+
+    <a class="module-tile module-tile-nutrition" href="/nutrition">
+      <span class="module-tile-label">Модуль 02</span>
+      <h2 class="module-tile-title">Питание</h2>
+      <p class="module-tile-text">Рацион восстановления, рекомендации по питанию и отдельная система поощрений.</p>
+      <span class="module-tile-action">Открыть модуль</span>
+    </a>
+  </div>
+</div>
+{{ end }}
+
+{{ define "module_selector" }}
+  {{ template "base" . }}
+{{ end }}

@@ -14,11 +14,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/assets/app.css" />
 </head>
-<body>
+<body class="{{ if eq .Module "nutrition" }}theme-nutrition{{ end }}">
   {{ if .HideNav }}
     {{ template "content" . }}
   {{ else }}
-    <div class="app">
+    <div class="app{{ if eq .Module "nutrition" }} nutrition-module{{ end }}">
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-title">
@@ -27,7 +27,11 @@
           <div class="brand-subtitle">Система реабилитации сотрудников</div>
         </div>
 
-        {{ template "nav" . }}
+        {{ if eq .Module "nutrition" }}
+          {{ template "nav_nutrition" . }}
+        {{ else }}
+          {{ template "nav" . }}
+        {{ end }}
 
         <div class="sidebar-footer">
           {{ if .User }}
@@ -80,7 +84,11 @@
       </main>
     </div>
 
-    {{ template "mobile-nav" . }}
+    {{ if eq .Module "nutrition" }}
+      {{ template "mobile-nav-nutrition" . }}
+    {{ else }}
+      {{ template "mobile-nav" . }}
+    {{ end }}
     <script>
       (function() {
         var toggle = document.getElementById('notifications-toggle');

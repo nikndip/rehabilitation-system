@@ -1,0 +1,57 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Поддержка модуля питания</div>
+    <div class="page-subtitle">Контакты специалистов и ответы на частые вопросы.</div>
+  </div>
+</div>
+
+<div class="grid cols-2" style="margin-bottom: 24px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Контакты</div>
+    </div>
+    <div class="grid" style="gap: 12px;">
+      {{ range .Contacts }}
+        <div class="card softer">
+          <div class="card-title">{{ .Title }}</div>
+          <p class="muted" style="margin-top: 6px;">{{ .Description }}</p>
+          <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <span class="badge">{{ .ActionLabel }}</span>
+            <span class="badge">{{ .ActionValue }}</span>
+          </div>
+        </div>
+      {{ end }}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Регламент связи</div>
+    </div>
+    <ul class="guide-list">
+      <li>Плановые вопросы по рациону: ответ в течение 1 рабочего дня.</li>
+      <li>Срочные корректировки питания после недомогания: приоритетная обработка.</li>
+      <li>Обновление поощрений и баллов: синхронизация ежедневно до 10:00.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Частые вопросы</div>
+  </div>
+  <div class="grid" style="gap: 12px;">
+    {{ range .FAQ }}
+      <div class="timeline-item">
+        <div class="timeline-reason">{{ .Question }}</div>
+        <div class="muted" style="margin-top: 6px;">{{ .Answer }}</div>
+      </div>
+    {{ end }}
+  </div>
+</div>
+{{ end }}
+
+{{ define "nutrition_support" }}
+  {{ template "base" . }}
+{{ end }}

@@ -1,0 +1,61 @@
+{{ define "nav_nutrition" }}
+<nav class="nav">
+  <a class="nav-item {{ if eq .Active "nutrition-dashboard" }}active{{ end }}" href="/nutrition">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-4H10v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg>
+    Главная
+  </a>
+  <a class="nav-item {{ if eq .Active "nutrition-plan" }}active{{ end }}" href="/nutrition/plan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12v4H6z"/><path d="M4 8h16v12H4z"/></svg>
+    План
+  </a>
+  <a class="nav-item {{ if eq .Active "nutrition-leaderboard" }}active{{ end }}" href="/nutrition/leaderboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h8v12H8z"/><path d="M4 10h4v8H4z"/><path d="M16 9h4v9h-4z"/></svg>
+    Рейтинг
+  </a>
+  <a class="nav-item {{ if eq .Active "nutrition-rewards" }}active{{ end }}" href="/nutrition/rewards">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7h12v10H6z"/><path d="M9 7V5h6v2"/><path d="M9 17h6"/></svg>
+    Поощрения
+  </a>
+  <a class="nav-item {{ if eq .Active "nutrition-achievements" }}active{{ end }}" href="/nutrition/achievements">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l3 6 6 .8-4.5 4.4 1 6.5-5.5-3-5.5 3 1-6.5L3 9.8 9 9z"/></svg>
+    Достижения
+  </a>
+  <a class="nav-item {{ if eq .Active "nutrition-meals" }}active{{ end }}" href="/nutrition/meals">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h6v6H4z"/><path d="M14 5h6v6h-6z"/><path d="M4 15h6v4H4z"/><path d="M14 15h6v4h-6z"/></svg>
+    Блюда
+  </a>
+  <a class="nav-item {{ if eq .Active "nutrition-profile" }}active{{ end }}" href="/nutrition/profile">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c2-4 6-6 8-6s6 2 8 6"/></svg>
+    Профиль
+  </a>
+  <a class="nav-item {{ if eq .Active "nutrition-support" }}active{{ end }}" href="/nutrition/support">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 10h8"/><path d="M8 14h5"/></svg>
+    Поддержка
+  </a>
+  <a class="nav-item" href="/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l-6 6 6 6"/><path d="M3 12h18"/></svg>
+    Выбор модуля
+  </a>
+</nav>
+{{ end }}
+
+{{ define "mobile-nav-nutrition" }}
+<nav class="mobile-nav">
+  <a class="{{ if eq .Active "nutrition-dashboard" }}active{{ end }}" href="/nutrition">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-4H10v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg>
+    Главная
+  </a>
+  <a class="{{ if eq .Active "nutrition-plan" }}active{{ end }}" href="/nutrition/plan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12v4H6z"/><path d="M4 8h16v12H4z"/></svg>
+    План
+  </a>
+  <a class="{{ if eq .Active "nutrition-rewards" }}active{{ end }}" href="/nutrition/rewards">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7h12v10H6z"/><path d="M9 7V5h6v2"/><path d="M9 17h6"/></svg>
+    Поощрения
+  </a>
+  <a class="{{ if eq .Active "nutrition-profile" }}active{{ end }}" href="/nutrition/profile">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c2-4 6-6 8-6s6 2 8 6"/></svg>
+    Профиль
+  </a>
+</nav>
+{{ end }}

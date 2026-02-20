@@ -1,0 +1,106 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Привет, {{ if .User }}{{ .User.Name }}{{ else }}Сотрудник{{ end }}</div>
+    <div class="page-subtitle">Сводка модуля питания за последние 7 дней.</div>
+  </div>
+  <a class="button primary" href="/nutrition/plan">Перейти к плану питания</a>
+</div>
+
+<div class="grid cols-3">
+  <div class="card stat">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h3l3 8 4-16 3 8h5"/></svg>
+    </div>
+    <div>
+      <div class="stat-value">{{ .Stats.DaysOnPlan }}</div>
+      <div class="stat-label">Дней по плану</div>
+    </div>
+  </div>
+
+  <div class="card stat">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M7 8c0-2 2-3 5-3s5 1 5 3-2 3-5 3-5 1-5 3 2 3 5 3 5-1 5-3"/></svg>
+    </div>
+    <div>
+      <div class="stat-value">{{ .Stats.ComplianceScore }}%</div>
+      <div class="stat-label">Соблюдение рациона</div>
+    </div>
+  </div>
+
+  <div class="card stat">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M7 7h10"/><path d="M7 17h10"/></svg>
+    </div>
+    <div>
+      <div class="stat-value">{{ .Stats.Points }}</div>
+      <div class="stat-label">Баллы питания</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid cols-2" style="margin-top: 24px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Ближайший прием пищи</div>
+      <span class="badge">{{ .NextMeal.Time }}</span>
+    </div>
+    <h3 style="margin-bottom: 8px;">{{ .NextMeal.Name }}</h3>
+    <p style="color: var(--muted); margin-bottom: 14px;">{{ .NextMeal.Description }}</p>
+    <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+      <span class="badge">{{ .NextMeal.Calories }} ккал</span>
+      <span class="badge">Б {{ .NextMeal.Protein }} г</span>
+      <span class="badge">У {{ .NextMeal.Carbs }} г</span>
+      <span class="badge">Ж {{ .NextMeal.Fats }} г</span>
+    </div>
+  </div>
+
+  <div class="card softer">
+    <div class="card-header">
+      <div class="card-title">Чек-лист дня</div>
+      <span class="badge">Гидратация: {{ .Stats.HydrationDays }}/7</span>
+    </div>
+    <div class="setup-grid">
+      {{ range .Checklist }}
+        <div class="setup-step {{ if .Completed }}done{{ end }}">
+          <div class="setup-step-title">{{ .Title }}</div>
+          {{ if .Completed }}
+            <div class="muted">Выполнено</div>
+          {{ else }}
+            <div class="muted">В работе</div>
+          {{ end }}
+        </div>
+      {{ end }}
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+  <div class="card-header">
+    <div class="card-title">Динамика питания и воды</div>
+    <span class="badge">{{ .TrendBadge }}</span>
+  </div>
+  <div class="muted" style="margin-bottom: 12px;">Зеленым — соблюдение рациона, светло-зеленым — водный баланс.</div>
+  <div class="trend-chart">
+    {{ range .Trend }}
+      <div class="trend-row">
+        <div class="trend-label">{{ .Label }}</div>
+        <div class="trend-bar nutrition-trend-bar">
+          <span style="width: {{ .CompliancePercent }}%;"></span>
+        </div>
+        <div class="trend-value">{{ .Compliance }}%</div>
+        <div class="trend-tolerance">
+          <div class="trend-tolerance-bar nutrition-hydration-bar">
+            <span style="width: {{ .HydrationPercent }}%;"></span>
+          </div>
+          <small>{{ .Hydration }}%</small>
+        </div>
+      </div>
+    {{ end }}
+  </div>
+</div>
+{{ end }}
+
+{{ define "nutrition_dashboard" }}
+  {{ template "base" . }}
+{{ end }}

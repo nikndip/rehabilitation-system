@@ -1,0 +1,51 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Поощрения питания</div>
+    <div class="page-subtitle">Обменивайте баллы модуля питания на целевые бонусы.</div>
+  </div>
+  <div class="badge">Баланс: {{ .Points }} баллов</div>
+</div>
+
+{{ if .Error }}
+  <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
+{{ end }}
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
+
+<div class="grid cols-3">
+  {{ range .Rewards }}
+    <div class="card program-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">{{ .Title }}</div>
+          <div class="muted">{{ .Description }}</div>
+        </div>
+      </div>
+      <div style="display:flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+        <span class="badge">{{ .PointsCost }} баллов</span>
+        {{ if .Category }}<span class="badge">{{ .Category }}</span>{{ end }}
+      </div>
+      {{ if ge $.Points .PointsCost }}
+        <form method="post" action="/nutrition/rewards/{{ .ID }}/redeem">
+          <button class="button primary" type="submit">Получить</button>
+        </form>
+      {{ else }}
+        <span class="badge">Недостаточно баллов</span>
+      {{ end }}
+    </div>
+  {{ else }}
+    <div class="card">
+      <div class="empty-state">
+        <div class="empty-title">Поощрения не добавлены</div>
+        <div class="muted">Список поощрений появится позже.</div>
+      </div>
+    </div>
+  {{ end }}
+</div>
+{{ end }}
+
+{{ define "nutrition_rewards" }}
+  {{ template "base" . }}
+{{ end }}

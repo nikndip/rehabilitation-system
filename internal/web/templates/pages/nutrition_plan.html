@@ -1,0 +1,110 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">План питания</div>
+    <div class="page-subtitle">Недельная структура рациона для восстановления сотрудников.</div>
+  </div>
+  <a class="button secondary" href="/nutrition/meals">Библиотека блюд</a>
+</div>
+
+<div class="grid cols-2" style="margin-bottom: 24px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Принципы плана</div>
+      <span class="badge">Еженедельно</span>
+    </div>
+    <ul class="guide-list">
+      {{ range .Guidelines }}
+        <li>{{ . }}</li>
+      {{ end }}
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Контроль параметров</div>
+    </div>
+    <div class="info-list">
+      <div><strong>Калорийность:</strong> 2000–2200 ккал</div>
+      <div><strong>Белок:</strong> 120–140 г/день</div>
+      <div><strong>Вода:</strong> не менее 1.8 л/день</div>
+      <div><strong>Режим:</strong> 3 основных приема + 1 перекус</div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Календарь питания</div>
+    <span class="badge">Текущая неделя</span>
+  </div>
+  <div class="calendar-grid">
+    {{ range .PlanDays }}
+      <div class="calendar-week">
+        <div class="calendar-week-title">{{ .DayLabel }}</div>
+        <div class="calendar-days" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+          <div class="calendar-day">
+            <div class="calendar-date">Завтрак</div>
+            <div class="calendar-name">{{ .Breakfast }}</div>
+          </div>
+          <div class="calendar-day">
+            <div class="calendar-date">Обед</div>
+            <div class="calendar-name">{{ .Lunch }}</div>
+          </div>
+          <div class="calendar-day">
+            <div class="calendar-date">Ужин</div>
+            <div class="calendar-name">{{ .Dinner }}</div>
+          </div>
+          <div class="calendar-day">
+            <div class="calendar-date">Перекус</div>
+            <div class="calendar-name">{{ .Snack }}</div>
+          </div>
+        </div>
+      </div>
+    {{ end }}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Подробный план по дням</div>
+    <span class="badge">КБЖУ и статус</span>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>День</th>
+        <th>Ключевой фокус</th>
+        <th>Калории</th>
+        <th>Белок</th>
+        <th>Вода</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .PlanDays }}
+        <tr>
+          <td>{{ .DayLabel }}</td>
+          <td>{{ .Focus }}</td>
+          <td>{{ .Calories }} ккал</td>
+          <td>{{ .Protein }} г</td>
+          <td>{{ .Hydration }}</td>
+          <td>
+            {{ if eq .Status "completed" }}
+              <span class="badge success">Выполнено</span>
+            {{ else if eq .Status "in_progress" }}
+              <span class="badge warning">В процессе</span>
+            {{ else }}
+              <span class="badge">Запланировано</span>
+            {{ end }}
+          </td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}
+
+{{ define "nutrition_plan" }}
+  {{ template "base" . }}
+{{ end }}
