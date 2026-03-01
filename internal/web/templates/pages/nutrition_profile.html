@@ -2,9 +2,17 @@
 <div class="page-header">
   <div>
     <div class="page-title">Профиль питания</div>
-    <div class="page-subtitle">Персональные параметры и целевые ориентиры по питанию.</div>
+    <div class="page-subtitle">Персональные параметры, streak, ограничения и полученные поощрения.</div>
   </div>
+  <a class="button secondary" href="/nutrition/questionnaire">Опросник питания</a>
 </div>
+
+{{ if .Error }}
+  <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
+{{ end }}
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
 
 <div class="grid cols-3">
   <div class="card profile-overview">
@@ -12,7 +20,11 @@
     <div class="muted">{{ .Profile.Department }} · {{ .Profile.Position }}</div>
     <div class="profile-meta">
       <span class="badge">ID {{ .Profile.EmployeeID }}</span>
-      <span class="badge">Цель: восстановление</span>
+      <span class="badge">Баланс: {{ .Points }}</span>
+    </div>
+    <div style="margin-top: 10px; display:flex; gap: 8px; flex-wrap: wrap;">
+      <span class="badge">Streak: {{ .CurrentStreak }}</span>
+      <span class="badge">Best: {{ .BestStreak }}</span>
     </div>
   </div>
 
@@ -32,25 +44,65 @@
     <div class="card-header">
       <div class="card-title">Ограничения</div>
     </div>
-    <div class="pill-list">
-      {{ range .Profile.Restrictions }}
-        <span class="pill">{{ . }}</span>
-      {{ else }}
-        <span class="pill">Не указано</span>
-      {{ end }}
+    <div class="info-list">
+      <div><strong>Запрещено:</strong> {{ join .RestrictionSummary.HardBan ", " }}</div>
+      <div><strong>Ограничить:</strong> {{ join .RestrictionSummary.SoftLimit ", " }}</div>
+      <div><strong>Рекомендуемый формат:</strong> {{ .RestrictionSummary.Recommended }}</div>
+      <div><strong>Дата опросника:</strong> {{ .RestrictionSummary.LastUpdated }}</div>
+      <div><strong>Статус:</strong> {{ .RestrictionSummary.Status }}</div>
     </div>
   </div>
 </div>
 
 <div class="card" style="margin-top: 24px;">
   <div class="card-header">
-    <div class="card-title">Рекомендации на неделю</div>
+    <div class="card-title">Полученные поощрения</div>
+    <a class="button secondary" href="/nutrition/rewards">К каталогу</a>
   </div>
-  <ul class="guide-list">
-    <li>Поддерживайте белок в каждом приеме пищи для стабильного восстановления.</li>
-    <li>Держите одинаковые интервалы между приемами пищи (3-4 часа).</li>
-    <li>Контролируйте вечерний прием углеводов и не перегружайте ужин.</li>
-  </ul>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Поощрение</th>
+        <th>Стоимость</th>
+        <th>Статус</th>
+        <th>Получено</th>
+        <th>Использовано</th>
+        <th>Действие</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .RewardHistory }}
+        <tr>
+          <td>{{ .Title }}</td>
+          <td>{{ .PointsCost }}</td>
+          <td>
+            {{ if eq .Status "issued" }}
+              <span class="badge warning">Выдано</span>
+            {{ else if eq .Status "used" }}
+              <span class="badge success">Использовано</span>
+            {{ else }}
+              <span class="badge">{{ .Status }}</span>
+            {{ end }}
+          </td>
+          <td>{{ .RedeemedAt }}</td>
+          <td>{{ if .UsedAt }}{{ .UsedAt }}{{ else }}—{{ end }}</td>
+          <td>
+            {{ if .CanUse }}
+              <form method="post" action="/nutrition/profile/redemptions/{{ .ID }}/use">
+                <button class="button secondary" type="submit">Использовать</button>
+              </form>
+            {{ else }}
+              <span class="badge">Нет действия</span>
+            {{ end }}
+          </td>
+        </tr>
+      {{ else }}
+        <tr>
+          <td colspan="6" class="muted">Поощрения еще не получены.</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
 </div>
 {{ end }}
 

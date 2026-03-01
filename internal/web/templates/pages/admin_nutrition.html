@@ -1,0 +1,142 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Администрирование питания</div>
+    <div class="page-subtitle">Управление анкетами, планами и поощрениями модуля питания.</div>
+  </div>
+  <a class="button secondary" href="/nutrition">К модулю питания</a>
+</div>
+
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
+{{ if .Error }}
+  <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
+{{ end }}
+
+<div class="grid cols-3" style="margin-bottom: 24px;">
+  <div class="card stat">
+    <div>
+      <div class="stat-value">{{ index .Stats "Questionnaires" }}</div>
+      <div class="stat-label">Анкет питания заполнено</div>
+    </div>
+  </div>
+  <div class="card stat">
+    <div>
+      <div class="stat-value">{{ index .Stats "Plans" }}</div>
+      <div class="stat-label">Сотрудников с планом питания</div>
+    </div>
+  </div>
+  <div class="card stat">
+    <div>
+      <div class="stat-value">{{ index .Stats "IssuedRewards" }}</div>
+      <div class="stat-label">Выдано поощрений (не использовано)</div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Сотрудники и анкеты питания</div>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Сотрудник</th>
+        <th>Цель</th>
+        <th>Калории</th>
+        <th>Вода</th>
+        <th>Анкета</th>
+        <th>Ограничения</th>
+        <th>Действие</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Employees }}
+        <tr>
+          <td>
+            <strong>{{ .Name }}</strong><br />
+            <span class="muted">ID {{ .EmployeeID }} · {{ .Department }}</span>
+          </td>
+          <td>{{ .NutritionGoal }}</td>
+          <td>{{ if gt .CaloriesTarget 0 }}{{ .CaloriesTarget }} ккал{{ else }}—{{ end }}</td>
+          <td>{{ if .WaterTarget }}{{ .WaterTarget }}{{ else }}—{{ end }}</td>
+          <td>
+            {{ if .QuestionnaireFilled }}
+              <span class="badge success">{{ .QuestionnaireUpdated }}</span>
+            {{ else }}
+              <span class="badge">Не заполнено</span>
+            {{ end }}
+          </td>
+          <td>
+            {{ if .ConsultationRequired }}
+              <span class="badge warning">{{ .RestrictionStatus }}</span>
+            {{ else }}
+              <span class="badge">{{ .RestrictionStatus }}</span>
+            {{ end }}
+          </td>
+          <td><a class="button secondary" href="/admin/nutrition/employees/{{ .ID }}">Открыть</a></td>
+        </tr>
+      {{ else }}
+        <tr>
+          <td colspan="7" class="muted">Сотрудники не найдены.</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Поощрения питания сотрудников</div>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Сотрудник</th>
+        <th>Поощрение</th>
+        <th>Статус</th>
+        <th>Получено</th>
+        <th>Использовано</th>
+        <th>Действие</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .IssuedRewards }}
+        <tr>
+          <td>{{ .EmployeeName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ .Title }}</td>
+          <td>
+            {{ if eq .Status "issued" }}
+              <span class="badge warning">Выдано</span>
+            {{ else if eq .Status "used" }}
+              <span class="badge success">Использовано</span>
+            {{ else }}
+              <span class="badge">{{ .Status }}</span>
+            {{ end }}
+          </td>
+          <td>{{ .RedeemedAt }}</td>
+          <td>{{ if .UsedAt }}{{ .UsedAt }}{{ else }}—{{ end }}</td>
+          <td>
+            {{ if .CanUse }}
+              <form method="post" action="/admin/nutrition/redemptions/{{ .ID }}/use">
+                <button class="button secondary" type="submit">Отметить использованным</button>
+              </form>
+            {{ else }}
+              <span class="badge">Нет действия</span>
+            {{ end }}
+          </td>
+        </tr>
+      {{ else }}
+        <tr>
+          <td colspan="6" class="muted">Поощрения не выдавались.</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}
+
+{{ define "admin_nutrition" }}
+  {{ template "base" . }}
+{{ end }}

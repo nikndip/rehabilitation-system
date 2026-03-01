@@ -2,7 +2,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Поощрения питания</div>
-    <div class="page-subtitle">Обменивайте баллы модуля питания на целевые бонусы.</div>
+    <div class="page-subtitle">Обменивайте баллы на поощрения и используйте их через профиль питания.</div>
   </div>
   <div class="badge">Баланс: {{ .Points }} баллов</div>
 </div>
@@ -26,6 +26,9 @@
       <div style="display:flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
         <span class="badge">{{ .PointsCost }} баллов</span>
         {{ if .Category }}<span class="badge">{{ .Category }}</span>{{ end }}
+        {{ with index $.RewardOwnedCounts .ID }}
+          <span class="badge success">В профиле: {{ . }}</span>
+        {{ end }}
       </div>
       {{ if ge $.Points .PointsCost }}
         <form method="post" action="/nutrition/rewards/{{ .ID }}/redeem">

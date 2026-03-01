@@ -1,0 +1,364 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Сотрудник · Модуль питания</div>
+    <div class="page-subtitle">{{ .Employee.Name }} · ID {{ .Employee.EmployeeID }}</div>
+  </div>
+  <a class="button secondary" href="/admin/nutrition">Назад</a>
+</div>
+
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
+{{ if .Error }}
+  <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
+{{ end }}
+
+<div class="grid cols-3" style="margin-bottom: 24px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Профиль сотрудника</div>
+    </div>
+    <div class="info-list">
+      <div><strong>ФИО:</strong> {{ .Employee.Name }}</div>
+      <div><strong>ID:</strong> {{ .Employee.EmployeeID }}</div>
+      <div><strong>Подразделение:</strong> {{ .Employee.Department }}</div>
+      <div><strong>Должность:</strong> {{ .Employee.Position }}</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Ограничения и статус</div>
+    </div>
+    <div class="info-list">
+      <div><strong>Запрещено:</strong> {{ if gt (len .RestrictionSummary.HardBan) 0 }}{{ join .RestrictionSummary.HardBan ", " }}{{ else }}—{{ end }}</div>
+      <div><strong>Ограничить:</strong> {{ if gt (len .RestrictionSummary.SoftLimit) 0 }}{{ join .RestrictionSummary.SoftLimit ", " }}{{ else }}—{{ end }}</div>
+      <div><strong>Формат:</strong> {{ .RestrictionSummary.Recommended }}</div>
+      <div><strong>Дата анкеты:</strong> {{ .QuestionnaireUpdatedAt }}</div>
+      <div><strong>Статус:</strong> {{ .RestrictionSummary.Status }}</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Быстрые действия</div>
+    </div>
+    <div class="info-list">
+      <div>Администратор может обновлять анкету, вручную назначать блюда в план и обрабатывать поощрения питания.</div>
+      <div>Изменения в модуле тренировок не затрагиваются.</div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Ручная корректировка плана питания</div>
+  </div>
+  <form class="inline-form" method="post" action="/admin/nutrition/employees/{{ .Employee.ID }}/plan/assign">
+    <select name="day" required>
+      <option value="">День</option>
+      {{ range .DayOptions }}
+        <option value="{{ .Key }}">{{ .Label }}</option>
+      {{ end }}
+    </select>
+    <select name="slot" required>
+      <option value="">Прием</option>
+      {{ range .SlotOptions }}
+        <option value="{{ .Key }}">{{ .Label }}</option>
+      {{ end }}
+    </select>
+    <select name="meal_id" required style="min-width: 280px;">
+      <option value="">Блюдо из библиотеки</option>
+      {{ range .MealOptions }}
+        <option value="{{ .ID }}">{{ .Name }} · {{ .Category }} · {{ .Calories }} ккал</option>
+      {{ end }}
+    </select>
+    <button class="button primary" type="submit">Назначить в план</button>
+  </form>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Текущий план питания сотрудника</div>
+  </div>
+  {{ range .PlanDays }}
+    <div class="card softer" style="margin-bottom: 12px;">
+      <div class="card-header">
+        <div class="card-title">{{ .DayLabel }} · {{ .DateLabel }}</div>
+        <span class="badge">{{ .CompletedSlots }}/4</span>
+      </div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Прием</th>
+            <th>Блюдо</th>
+            <th>Время</th>
+            <th>КБЖУ</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range .Slots }}
+            <tr>
+              <td>{{ .SlotLabel }}</td>
+              <td>{{ .MealName }}</td>
+              <td>{{ .PlannedTime }}</td>
+              <td>{{ .Calories }} / Б{{ .Protein }} У{{ .Carbs }} Ж{{ .Fats }}</td>
+              <td>
+                {{ if eq .Status "completed" }}
+                  <span class="badge success">Выполнено</span>
+                {{ else if eq .Status "skipped" }}
+                  <span class="badge error">Пропущено</span>
+                {{ else }}
+                  <span class="badge">Запланировано</span>
+                {{ end }}
+              </td>
+            </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+  {{ end }}
+</div>
+
+<form method="post" action="/admin/nutrition/employees/{{ .Employee.ID }}/questionnaire" class="form" style="margin-bottom: 24px;">
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-header">
+      <div class="card-title">Анкета питания сотрудника</div>
+      <span class="badge">Редактирование администратором</span>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-title">1. Медицинские ограничения</div>
+    <div class="form-grid" style="margin-top: 12px;">
+      <div class="form-group">
+        <label>Непереносимость лактозы</label>
+        <select name="lactose_level">
+          {{ range .LactoseOptions }}
+            <option value="{{ . }}" {{ if eq $.Questionnaire.LactoseLevel . }}selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Назначение врача по диете</label>
+        <label class="choice-chip" style="margin-top: 6px;">
+          <input type="checkbox" name="doctor_diet_assigned" {{ if .Questionnaire.DoctorDietAssigned }}checked{{ end }} />
+          <span>Есть назначение врача</span>
+        </label>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top: 8px;">
+      <label class="choice-chip">
+        <input type="checkbox" name="gluten_intolerance" {{ if .Questionnaire.GlutenIntolerance }}checked{{ end }} />
+        <span>Непереносимость глютена</span>
+      </label>
+    </div>
+    <div class="form-group">
+      <label>Аллергии</label>
+      <div class="choice-grid">
+        {{ range .AllergyOptions }}
+          <label class="choice-chip">
+            <input type="checkbox" name="allergies" value="{{ . }}" {{ if contains $.Questionnaire.Allergies . }}checked{{ end }} />
+            <span>{{ . }}</span>
+          </label>
+        {{ end }}
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Ограничения по ЖКТ</label>
+      <div class="choice-grid">
+        {{ range .GastroOptions }}
+          <label class="choice-chip">
+            <input type="checkbox" name="git_restrictions" value="{{ . }}" {{ if contains $.Questionnaire.GITRestrictions . }}checked{{ end }} />
+            <span>{{ . }}</span>
+          </label>
+        {{ end }}
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-title">2. Реакция и рабочий режим</div>
+    <div class="form-grid" style="margin-top: 12px;">
+      <div class="form-group">
+        <label>После каких продуктов дискомфорт</label>
+        <input name="discomfort_foods" value="{{ .Questionnaire.DiscomfortFoods }}" />
+      </div>
+      <div class="form-group">
+        <label>Частота симптомов</label>
+        <select name="symptom_frequency">
+          {{ range .SymptomFrequencyOptions }}
+            <option value="{{ . }}" {{ if eq $.Questionnaire.SymptomFrequency . }}selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Когда хуже переносимость</label>
+        <select name="worse_time">
+          {{ range .WorseTimeOptions }}
+            <option value="{{ . }}" {{ if eq $.Questionnaire.WorseTime . }}selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>График</label>
+        <select name="work_schedule">
+          {{ range .WorkScheduleOptions }}
+            <option value="{{ . }}" {{ if eq $.Questionnaire.WorkSchedule . }}selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Доступ к столовой/разогреву</label>
+        <select name="canteen_access">
+          {{ range .CanteenAccessOptions }}
+            <option value="{{ . }}" {{ if eq $.Questionnaire.CanteenAccess . }}selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Окна приема пищи</label>
+      <div class="choice-grid">
+        {{ range .MealWindowOptions }}
+          <label class="choice-chip">
+            <input type="checkbox" name="meal_windows" value="{{ . }}" {{ if contains $.Questionnaire.MealWindows . }}checked{{ end }} />
+            <span>{{ . }}</span>
+          </label>
+        {{ end }}
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-title">3. Цели и параметры</div>
+    <div class="form-grid" style="margin-top: 12px;">
+      <div class="form-group">
+        <label>Приоритет восстановления</label>
+        <select name="recovery_priority">
+          {{ range .PriorityOptions }}
+            <option value="{{ . }}" {{ if eq $.Questionnaire.RecoveryPriority . }}selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Уровень энергии</label>
+        <select name="energy_level">
+          {{ range .EnergyLevelOptions }}
+            <option value="{{ . }}" {{ if eq $.Questionnaire.EnergyLevel . }}selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Цель питания</label>
+        <select name="nutrition_goal">
+          {{ range .GoalOptions }}
+            <option value="{{ . }}" {{ if eq $.Questionnaire.NutritionGoal . }}selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Калорийность (ккал/день)</label>
+        <input type="number" min="1200" max="4500" name="calories_target" value="{{ .Questionnaire.CaloriesTarget }}" />
+      </div>
+      <div class="form-group">
+        <label>Вода (л/день)</label>
+        <select name="water_target_liters">
+          {{ range .WaterTargetOptions }}
+            <option value="{{ . }}" {{ if eq $.Questionnaire.WaterTargetLiters . }}selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Режим питания</label>
+        <select name="meal_pattern">
+          {{ range .MealPatternOptions }}
+            <option value="{{ . }}" {{ if eq $.Questionnaire.MealPattern . }}selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Стресс и сон</label>
+      <textarea name="stress_sleep_note" rows="3">{{ .Questionnaire.StressSleepNote }}</textarea>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-title">4. Пищевые предпочтения</div>
+    <div class="form-group" style="margin-top: 12px;">
+      <label>Что не ест сотрудник</label>
+      <input name="avoid_foods" value="{{ .Questionnaire.AvoidFoods }}" />
+    </div>
+    <div class="form-group">
+      <label>Предпочтительный формат</label>
+      <div class="choice-grid">
+        {{ range .FormatOptions }}
+          <label class="choice-chip">
+            <input type="checkbox" name="preferred_formats" value="{{ . }}" {{ if contains $.Questionnaire.PreferredFormats . }}checked{{ end }} />
+            <span>{{ . }}</span>
+          </label>
+        {{ end }}
+      </div>
+    </div>
+  </div>
+
+  <button class="button primary" type="submit">Сохранить анкету</button>
+</form>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Поощрения питания сотрудника</div>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Поощрение</th>
+        <th>Стоимость</th>
+        <th>Статус</th>
+        <th>Получено</th>
+        <th>Использовано</th>
+        <th>Действие</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .RewardHistory }}
+        <tr>
+          <td>{{ .Title }}</td>
+          <td>{{ .PointsCost }}</td>
+          <td>
+            {{ if eq .Status "issued" }}
+              <span class="badge warning">Выдано</span>
+            {{ else if eq .Status "used" }}
+              <span class="badge success">Использовано</span>
+            {{ else }}
+              <span class="badge">{{ .Status }}</span>
+            {{ end }}
+          </td>
+          <td>{{ .RedeemedAt }}</td>
+          <td>{{ if .UsedAt }}{{ .UsedAt }}{{ else }}—{{ end }}</td>
+          <td>
+            {{ if .CanUse }}
+              <form method="post" action="/admin/nutrition/redemptions/{{ .ID }}/use">
+                <button class="button secondary" type="submit">Отметить использованным</button>
+              </form>
+            {{ else }}
+              <span class="badge">Нет действия</span>
+            {{ end }}
+          </td>
+        </tr>
+      {{ else }}
+        <tr>
+          <td colspan="6" class="muted">Поощрения еще не выдавались.</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}
+
+{{ define "admin_nutrition_employee" }}
+  {{ template "base" . }}
+{{ end }}

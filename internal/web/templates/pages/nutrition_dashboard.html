@@ -2,7 +2,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Привет, {{ if .User }}{{ .User.Name }}{{ else }}Сотрудник{{ end }}</div>
-    <div class="page-subtitle">Сводка модуля питания за последние 7 дней.</div>
+    <div class="page-subtitle">Сводка модуля питания: выполнение, напоминания, стрик и рекомендации недели.</div>
   </div>
   <a class="button primary" href="/nutrition/plan">Перейти к плану питания</a>
 </div>
@@ -55,23 +55,98 @@
     </div>
   </div>
 
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Персональный streak</div>
+      <span class="badge">Текущий: {{ .Stats.CurrentStreak }}</span>
+    </div>
+    <div class="muted" style="margin-bottom: 8px;">Лучший streak: {{ .Stats.BestStreak }} дней подряд без пропусков.</div>
+    <div class="trend-bar nutrition-trend-bar" style="height: 10px;">
+      <span style="width: {{ .StreakProgressPercent }}%;"></span>
+    </div>
+    <div class="muted" style="margin-top: 8px;">Прогресс к личному максимуму.</div>
+  </div>
+</div>
+
+<div class="grid cols-2" style="margin-top: 24px;">
   <div class="card softer">
     <div class="card-header">
-      <div class="card-title">Чек-лист дня</div>
-      <span class="badge">Гидратация: {{ .Stats.HydrationDays }}/7</span>
+      <div class="card-title">Напоминания по питанию и воде</div>
+      <span class="badge">Мягкий SLA</span>
     </div>
-    <div class="setup-grid">
-      {{ range .Checklist }}
-        <div class="setup-step {{ if .Completed }}done{{ end }}">
-          <div class="setup-step-title">{{ .Title }}</div>
-          {{ if .Completed }}
-            <div class="muted">Выполнено</div>
-          {{ else }}
-            <div class="muted">В работе</div>
-          {{ end }}
+    <div class="grid" style="gap: 10px;">
+      {{ range .Reminders }}
+        <div class="timeline-item">
+          <div style="display:flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+            <strong>{{ .Title }}</strong>
+            <span class="badge">{{ .Time }}</span>
+          </div>
+          <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+            <span class="badge">{{ .State }}</span>
+          </div>
+          <div class="muted" style="margin-top: 6px;">{{ .Hint }}</div>
         </div>
       {{ end }}
     </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Weekly Review</div>
+      <span class="badge">3 + 2</span>
+    </div>
+    <div class="grid" style="gap: 10px;">
+      <div>
+        <div class="card-title" style="font-size: 15px; margin-bottom: 8px;">Сильные стороны</div>
+        <ul class="guide-list">
+          {{ range .WeeklyReview.Strengths }}
+            <li>{{ . }}</li>
+          {{ end }}
+        </ul>
+      </div>
+      <div>
+        <div class="card-title" style="font-size: 15px; margin-bottom: 8px;">Зоны улучшения</div>
+        <ul class="guide-list">
+          {{ range .WeeklyReview.Improvements }}
+            <li>{{ . }}</li>
+          {{ end }}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+  <div class="card-header">
+    <div class="card-title">Чек-лист дня</div>
+    <span class="badge">Гидратация: {{ .Stats.HydrationDays }}/7</span>
+  </div>
+  <div class="setup-grid">
+    {{ range .Checklist }}
+      <div class="setup-step {{ if .Completed }}done{{ end }}">
+        <div class="setup-step-title">{{ .Title }}</div>
+        {{ if .Completed }}
+          <div class="muted">Выполнено</div>
+        {{ else }}
+          <div class="muted">В работе</div>
+        {{ end }}
+      </div>
+    {{ end }}
+  </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+  <div class="card-header">
+    <div class="card-title">Челлендж недели</div>
+    <a class="button secondary" href="/nutrition/rewards">Смотреть поощрения</a>
+  </div>
+  <div class="setup-grid">
+    {{ range .ChallengeItems }}
+      <div class="setup-step {{ if .Completed }}done{{ end }}">
+        <div class="setup-step-title">{{ .Title }}</div>
+        <div class="muted">Награда: +{{ .Points }} баллов</div>
+      </div>
+    {{ end }}
   </div>
 </div>
 
@@ -99,6 +174,7 @@
     {{ end }}
   </div>
 </div>
+
 {{ end }}
 
 {{ define "nutrition_dashboard" }}

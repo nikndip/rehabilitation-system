@@ -2,9 +2,21 @@
 <div class="page-header">
   <div>
     <div class="page-title">Библиотека блюд</div>
-    <div class="page-subtitle">Подбор блюд для плана питания с учетом КБЖУ.</div>
+    <div class="page-subtitle">Выберите блюдо и назначьте его на конкретный день и прием пищи.</div>
   </div>
+  <a class="button secondary" href="/nutrition/plan">Открыть план питания</a>
 </div>
+
+{{ if .Error }}
+  <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
+{{ end }}
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
+
+{{ if .SelectedSlot }}
+  <div class="notice" style="margin-bottom: 16px;">Режим замены для слота: <strong>{{ .SelectedSlotLabel }}</strong></div>
+{{ end }}
 
 <div class="card" style="margin-bottom: 20px;">
   <form class="form" method="get" action="/nutrition/meals">
@@ -23,7 +35,28 @@
           <option value="Перекус" {{ if eq .Category "Перекус" }}selected{{ end }}>Перекус</option>
         </select>
       </div>
+      <div class="form-group">
+        <label for="day">День</label>
+        <select id="day" name="day">
+          {{ range .DayOptions }}
+            <option value="{{ .Key }}" {{ if eq $.SelectedDay .Key }}selected{{ end }}>{{ .Label }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="slot">Прием пищи</label>
+        <select id="slot" name="slot">
+          <option value="">Авто по категории</option>
+          <option value="breakfast" {{ if eq .SelectedSlot "breakfast" }}selected{{ end }}>Завтрак</option>
+          <option value="lunch" {{ if eq .SelectedSlot "lunch" }}selected{{ end }}>Обед</option>
+          <option value="dinner" {{ if eq .SelectedSlot "dinner" }}selected{{ end }}>Ужин</option>
+          <option value="snack" {{ if eq .SelectedSlot "snack" }}selected{{ end }}>Перекус</option>
+        </select>
+      </div>
     </div>
+    {{ if .ReturnTo }}
+      <input type="hidden" name="return_to" value="{{ .ReturnTo }}" />
+    {{ end }}
     <button class="button primary" type="submit">Применить</button>
   </form>
 </div>
@@ -42,9 +75,26 @@
         <span class="badge">У {{ .Carbs }} г</span>
         <span class="badge">Ж {{ .Fats }} г</span>
       </div>
-      <div style="display:flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
-        <button class="button secondary" type="button">Добавить в план</button>
-      </div>
+      <form method="post" action="/nutrition/meals/{{ .ID }}/assign" style="display:flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center;">
+        <input type="hidden" name="return_q" value="{{ $.Query }}" />
+        <input type="hidden" name="return_category" value="{{ $.Category }}" />
+        {{ if $.ReturnTo }}
+          <input type="hidden" name="return_to" value="{{ $.ReturnTo }}" />
+        {{ end }}
+        <select name="day" required style="max-width: 220px;">
+          {{ range $.DayOptions }}
+            <option value="{{ .Key }}" {{ if eq $.SelectedDay .Key }}selected{{ end }}>{{ .Label }}</option>
+          {{ end }}
+        </select>
+        <select name="target_slot" required style="max-width: 220px;">
+          {{ $selectedSlot := $.SelectedSlot }}
+          <option value="breakfast" {{ if or (eq $selectedSlot "breakfast") (and (eq $selectedSlot "") (eq .Category "Завтрак")) }}selected{{ end }}>Завтрак</option>
+          <option value="lunch" {{ if or (eq $selectedSlot "lunch") (and (eq $selectedSlot "") (eq .Category "Обед")) }}selected{{ end }}>Обед</option>
+          <option value="dinner" {{ if or (eq $selectedSlot "dinner") (and (eq $selectedSlot "") (eq .Category "Ужин")) }}selected{{ end }}>Ужин</option>
+          <option value="snack" {{ if or (eq $selectedSlot "snack") (and (eq $selectedSlot "") (eq .Category "Перекус")) }}selected{{ end }}>Перекус</option>
+        </select>
+        <button class="button secondary" type="submit">Добавить в план</button>
+      </form>
     </div>
   {{ else }}
     <div class="card">

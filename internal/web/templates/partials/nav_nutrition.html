@@ -24,6 +24,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h6v6H4z"/><path d="M14 5h6v6h-6z"/><path d="M4 15h6v4H4z"/><path d="M14 15h6v4h-6z"/></svg>
     Блюда
   </a>
+  <a class="nav-item {{ if eq .Active "nutrition-questionnaire" }}active{{ end }}" href="/nutrition/questionnaire">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 7a3 3 0 1 1 6 0c0 2-3 2-3 5"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+    Опросник
+  </a>
   <a class="nav-item {{ if eq .Active "nutrition-profile" }}active{{ end }}" href="/nutrition/profile">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c2-4 6-6 8-6s6 2 8 6"/></svg>
     Профиль
@@ -32,6 +36,12 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 10h8"/><path d="M8 14h5"/></svg>
     Поддержка
   </a>
+  {{ if and .User (eq .User.Role "admin") }}
+    <a class="nav-item {{ if eq .Active "nutrition-admin" }}active{{ end }}" href="/admin/nutrition">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6z"/></svg>
+      Администрирование
+    </a>
+  {{ end }}
   <a class="nav-item" href="/">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l-6 6 6 6"/><path d="M3 12h18"/></svg>
     Выбор модуля
@@ -53,9 +63,19 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7h12v10H6z"/><path d="M9 7V5h6v2"/><path d="M9 17h6"/></svg>
     Поощрения
   </a>
+  <a class="{{ if eq .Active "nutrition-questionnaire" }}active{{ end }}" href="/nutrition/questionnaire">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 7a3 3 0 1 1 6 0c0 2-3 2-3 5"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+    Опросник
+  </a>
   <a class="{{ if eq .Active "nutrition-profile" }}active{{ end }}" href="/nutrition/profile">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c2-4 6-6 8-6s6 2 8 6"/></svg>
     Профиль
   </a>
+  {{ if and .User (eq .User.Role "admin") }}
+    <a class="{{ if eq .Active "nutrition-admin" }}active{{ end }}" href="/admin/nutrition">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6z"/></svg>
+      Админ
+    </a>
+  {{ end }}
 </nav>
 {{ end }}
