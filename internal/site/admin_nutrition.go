@@ -16,8 +16,10 @@ type adminNutritionEmployeeRow struct {
 	ID                   string
 	Name                 string
 	EmployeeID           string
+	CorporateEmail       string
 	Department           string
 	Position             string
+	Points               int
 	QuestionnaireFilled  bool
 	QuestionnaireUpdated string
 	NutritionGoal        string
@@ -39,11 +41,13 @@ type adminNutritionRedemptionRow struct {
 }
 
 type adminNutritionEmployeeCard struct {
-	ID         string
-	Name       string
-	EmployeeID string
-	Department string
-	Position   string
+	ID             string
+	Name           string
+	EmployeeID     string
+	CorporateEmail string
+	Department     string
+	Position       string
+	Points         int
 }
 
 type adminNutritionSlotOption struct {
@@ -59,20 +63,28 @@ func (s *Site) adminNutritionDashboard(w http.ResponseWriter, r *http.Request) {
 	var questionnaireCount int
 	var plansCount int
 	var issuedRewards int
+	var unlockedAchievements int
+	var pointsOperations int
 	_ = s.DB.QueryRow(`select count(*) from nutrition_questionnaire_responses`).Scan(&questionnaireCount)
 	_ = s.DB.QueryRow(`select count(distinct user_id) from nutrition_plan_meals`).Scan(&plansCount)
 	_ = s.DB.QueryRow(`select count(*) from nutrition_reward_redemptions where status = 'issued'`).Scan(&issuedRewards)
+	_ = s.DB.QueryRow(`select count(*) from nutrition_user_achievements where unlocked = true`).Scan(&unlockedAchievements)
+	_ = s.DB.QueryRow(`select count(*) from nutrition_points_ledger where created_at >= now() - interval '30 days'`).Scan(&pointsOperations)
 	data["Stats"] = map[string]int{
-		"Questionnaires": questionnaireCount,
-		"Plans":          plansCount,
-		"IssuedRewards":  issuedRewards,
+		"Questionnaires":      questionnaireCount,
+		"Plans":               plansCount,
+		"IssuedRewards":       issuedRewards,
+		"UnlockedAchievements": unlockedAchievements,
+		"PointsOperations":    pointsOperations,
 	}
 
 	employees := []adminNutritionEmployeeRow{}
 	rows, err := s.DB.Query(
-		`select u.id, u.name, coalesce(u.employee_id, ''), coalesce(u.department, ''), coalesce(u.position, ''),
+		`select u.id, u.name, coalesce(u.employee_id, ''), coalesce(u.corporate_email, ''),
+		        coalesce(u.department, ''), coalesce(u.position, ''), coalesce(up.points_balance, 0),
 		        nqr.answers, nqr.updated_at
 		 from users u
+		 left join user_points up on up.user_id = u.id
 		 left join nutrition_questionnaire_responses nqr on nqr.user_id = u.id
 		 where u.role = 'employee'
 		 order by coalesce(nqr.updated_at, to_timestamp(0)) desc, u.name`,
@@ -83,7 +95,17 @@ func (s *Site) adminNutritionDashboard(w http.ResponseWriter, r *http.Request) {
 			var row adminNutritionEmployeeRow
 			var answers []byte
 			var updatedAt sql.NullTime
-			if err := rows.Scan(&row.ID, &row.Name, &row.EmployeeID, &row.Department, &row.Position, &answers, &updatedAt); err != nil {
+			if err := rows.Scan(
+				&row.ID,
+				&row.Name,
+				&row.EmployeeID,
+				&row.CorporateEmail,
+				&row.Department,
+				&row.Position,
+				&row.Points,
+				&answers,
+				&updatedAt,
+			); err != nil {
 				continue
 			}
 
@@ -181,6 +203,8 @@ func (s *Site) adminNutritionEmployeePage(w http.ResponseWriter, r *http.Request
 	data["MealOptions"] = mealOptions
 	data["PlanDays"] = planDays
 	data["RewardHistory"] = rewardHistory
+	data["ReminderSettings"] = s.loadNutritionReminderSettings(employee.ID)
+	data["AchievementProgress"] = s.loadNutritionAchievementsView(employee.ID)
 	data["LactoseOptions"] = nutritionLactoseOptions()
 	data["AllergyOptions"] = nutritionAllergyOptions()
 	data["GastroOptions"] = nutritionGastroOptions()
@@ -265,6 +289,12 @@ func (s *Site) adminNutritionEmployeePlanAssign(w http.ResponseWriter, r *http.R
 	}
 
 	s.insertNutritionEvent(employeeID, "План питания скорректирован администратором: "+nutritionDayLabel(dayKey)+" / "+nutritionSlotLabel(slot)+".")
+	if dayDate, ok := nutritionDayDate(nutritionWeekStart(time.Now()), dayKey); ok {
+		s.insertNutritionDayEvent(employeeID, dayKey, "admin_meal_assigned", slot, dayDate, map[string]any{
+			"meal_id":   meal.ID,
+			"meal_name": meal.Name,
+		})
+	}
 	http.Redirect(w, r, "/admin/nutrition/employees/"+employeeID+"?success="+url.QueryEscape("План питания обновлен"), http.StatusSeeOther)
 }
 
@@ -300,11 +330,26 @@ func (s *Site) adminNutritionRedemptionUse(w http.ResponseWriter, r *http.Reques
 func (s *Site) loadAdminNutritionEmployee(userID string) (adminNutritionEmployeeCard, bool) {
 	var employee adminNutritionEmployeeCard
 	err := s.DB.QueryRow(
-		`select id, name, coalesce(employee_id, ''), coalesce(department, ''), coalesce(position, '')
-		 from users
+		`select u.id,
+		        u.name,
+		        coalesce(u.employee_id, ''),
+		        coalesce(u.corporate_email, ''),
+		        coalesce(u.department, ''),
+		        coalesce(u.position, ''),
+		        coalesce(up.points_balance, 0)
+		 from users u
+		 left join user_points up on up.user_id = u.id
 		 where id = $1 and role = 'employee'`,
 		userID,
-	).Scan(&employee.ID, &employee.Name, &employee.EmployeeID, &employee.Department, &employee.Position)
+	).Scan(
+		&employee.ID,
+		&employee.Name,
+		&employee.EmployeeID,
+		&employee.CorporateEmail,
+		&employee.Department,
+		&employee.Position,
+		&employee.Points,
+	)
 	if err != nil {
 		return adminNutritionEmployeeCard{}, false
 	}

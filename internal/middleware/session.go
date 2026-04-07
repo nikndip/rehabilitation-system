@@ -25,12 +25,12 @@ func (s *SessionManager) Load(next http.Handler) http.Handler {
 
     var user models.User
     err = s.DB.QueryRow(
-      `select u.id, u.name, u.employee_id, u.role, coalesce(u.department, ''), coalesce(u.position, '')
+      `select u.id, u.name, u.employee_id, coalesce(u.corporate_email, ''), u.role, coalesce(u.department, ''), coalesce(u.position, '')
        from sessions s
        join users u on u.id = s.user_id
        where s.token = $1 and s.expires_at > now()`,
       cookie.Value,
-    ).Scan(&user.ID, &user.Name, &user.EmployeeID, &user.Role, &user.Department, &user.Position)
+    ).Scan(&user.ID, &user.Name, &user.EmployeeID, &user.CorporateEmail, &user.Role, &user.Department, &user.Position)
     if err != nil {
       next.ServeHTTP(w, r)
       return

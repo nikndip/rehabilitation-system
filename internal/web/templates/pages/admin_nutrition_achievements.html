@@ -1,0 +1,200 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Админка питания · Достижения</div>
+    <div class="page-subtitle">Каталог достижений, правила начисления и прогресс сотрудников.</div>
+  </div>
+  <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+    <a class="button secondary" href="/admin/nutrition/points">Баллы</a>
+    <a class="button secondary" href="/admin/nutrition">К панели питания</a>
+  </div>
+</div>
+
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
+{{ if .Error }}
+  <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
+{{ end }}
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Создать достижение</div>
+  </div>
+  <form class="form" method="post" action="/admin/nutrition/achievements">
+    <div class="grid cols-3">
+      <div class="form-group">
+        <label>Код</label>
+        <input name="code" placeholder="nutri-custom-1" required />
+      </div>
+      <div class="form-group">
+        <label>Название</label>
+        <input name="title" required />
+      </div>
+      <div class="form-group">
+        <label>Иконка</label>
+        <input name="icon" value="🏅" />
+      </div>
+      <div class="form-group">
+        <label>Метрика</label>
+        <select name="metric_key">
+          {{ range .MetricOptions }}
+            <option value="{{ .Key }}">{{ .Label }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Цель</label>
+        <input type="number" min="1" name="target_value" value="7" required />
+      </div>
+      <div class="form-group">
+        <label>Окно дней (0 = без ограничения)</label>
+        <input type="number" min="0" name="window_days" value="0" />
+      </div>
+      <div class="form-group">
+        <label>Баллы</label>
+        <input type="number" min="0" name="points_reward" value="30" />
+      </div>
+      <div class="form-group">
+        <label>Порядок</label>
+        <input type="number" min="1" name="sort_order" value="100" />
+      </div>
+      <div class="form-group">
+        <label class="toggle">
+          <input type="checkbox" name="active" checked />
+          <span>Активно</span>
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Описание достижения</label>
+      <textarea name="description" rows="2" required></textarea>
+    </div>
+    <div class="form-group">
+      <label>Пояснение правила</label>
+      <textarea name="rule_description" rows="2"></textarea>
+    </div>
+    <button class="button primary" type="submit">Сохранить достижение</button>
+  </form>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Каталог достижений</div>
+  </div>
+  <div class="grid" style="gap: 14px;">
+    {{ range .Catalog }}
+      <form class="card softer form" method="post" action="/admin/nutrition/achievements/{{ .ID }}/update">
+        <input type="hidden" name="code" value="{{ .Code }}" />
+        <div class="grid cols-3">
+          <div class="form-group">
+            <label>Код</label>
+            <input value="{{ .Code }}" disabled />
+          </div>
+          <div class="form-group">
+            <label>Название</label>
+            <input name="title" value="{{ .Title }}" required />
+          </div>
+          <div class="form-group">
+            <label>Иконка</label>
+            <input name="icon" value="{{ .Icon }}" />
+          </div>
+          <div class="form-group">
+            <label>Метрика</label>
+            {{ $row := . }}
+            <select name="metric_key">
+              {{ range $.MetricOptions }}
+                <option value="{{ .Key }}" {{ if eq $row.MetricKey .Key }}selected{{ end }}>{{ .Label }}</option>
+              {{ end }}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Цель</label>
+            <input type="number" min="1" name="target_value" value="{{ .TargetValue }}" />
+          </div>
+          <div class="form-group">
+            <label>Окно дней</label>
+            <input type="number" min="0" name="window_days" value="{{ .WindowDays }}" />
+          </div>
+          <div class="form-group">
+            <label>Баллы</label>
+            <input type="number" min="0" name="points_reward" value="{{ .PointsReward }}" />
+          </div>
+          <div class="form-group">
+            <label>Порядок</label>
+            <input type="number" min="1" name="sort_order" value="{{ .SortOrder }}" />
+          </div>
+          <div class="form-group">
+            <label class="toggle">
+              <input type="checkbox" name="active" {{ if .Active }}checked{{ end }} />
+              <span>Активно</span>
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Описание достижения</label>
+          <textarea name="description" rows="2">{{ .Description }}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Пояснение правила</label>
+          <textarea name="rule_description" rows="2">{{ .RuleDescription }}</textarea>
+        </div>
+        <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+          <button class="button secondary" type="submit">Сохранить</button>
+          <button class="button danger" type="submit" formaction="/admin/nutrition/achievements/{{ .ID }}/delete" formnovalidate>Удалить</button>
+        </div>
+      </form>
+    {{ else }}
+      <div class="empty-state">
+        <div class="empty-title">Каталог пуст</div>
+        <div class="muted">Добавьте первое достижение выше.</div>
+      </div>
+    {{ end }}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Прогресс сотрудников</div>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Сотрудник</th>
+        <th>Достижение</th>
+        <th>Прогресс</th>
+        <th>Статус</th>
+        <th>Обновлено</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .ProgressRows }}
+        <tr>
+          <td>{{ .UserName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ .AchievementTitle }}</td>
+          <td>
+            <div class="progress"><span style="width: {{ .ProgressPercent }}%;"></span></div>
+            <div class="muted" style="margin-top: 6px;">{{ .Progress }}/{{ .Target }}</div>
+          </td>
+          <td>
+            {{ if .Unlocked }}
+              <span class="badge success">Открыто{{ if .UnlockedAt }} · {{ .UnlockedAt }}{{ end }}</span>
+            {{ else }}
+              <span class="badge">В прогрессе</span>
+            {{ end }}
+          </td>
+          <td>{{ .UpdatedAt }}</td>
+        </tr>
+      {{ else }}
+        <tr>
+          <td colspan="5" class="muted">Прогресс пока не сформирован.</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}
+
+{{ define "admin_nutrition_achievements" }}
+  {{ template "base" . }}
+{{ end }}

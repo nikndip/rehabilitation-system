@@ -1,0 +1,127 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Админка питания · Баллы</div>
+    <div class="page-subtitle">Управление балансом баллов и аудит операций по сотрудникам.</div>
+  </div>
+  <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+    <a class="button secondary" href="/admin/nutrition/achievements">Достижения</a>
+    <a class="button secondary" href="/admin/nutrition">К панели питания</a>
+  </div>
+</div>
+
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
+{{ if .Error }}
+  <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
+{{ end }}
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Корректировка баллов</div>
+  </div>
+  <form class="form" method="post" action="/admin/nutrition/points/adjust">
+    <div class="grid cols-3">
+      <div class="form-group">
+        <label>Сотрудник</label>
+        <select name="user_id" required>
+          <option value="">Выберите сотрудника</option>
+          {{ range .Employees }}
+            <option value="{{ .ID }}">{{ .Name }} (ID {{ .EmployeeID }}) · {{ .Points }} баллов</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Изменение баллов</label>
+        <input type="number" name="delta" placeholder="+50 или -20" required />
+      </div>
+      <div class="form-group">
+        <label>Причина</label>
+        <input name="reason" placeholder="например: закрытие кейса по питанию" />
+      </div>
+    </div>
+    <button class="button primary" type="submit">Применить корректировку</button>
+  </form>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Баланс сотрудников</div>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Сотрудник</th>
+        <th>Корп. почта</th>
+        <th>Подразделение</th>
+        <th>Баллы</th>
+        <th>Профиль</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Employees }}
+        <tr>
+          <td>{{ .Name }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ if .CorporateEmail }}{{ .CorporateEmail }}{{ else }}—{{ end }}</td>
+          <td>{{ if .Department }}{{ .Department }}{{ else }}—{{ end }}</td>
+          <td><strong>{{ .Points }}</strong></td>
+          <td><a class="button secondary" href="/admin/nutrition/employees/{{ .ID }}">Открыть</a></td>
+        </tr>
+      {{ else }}
+        <tr>
+          <td colspan="5" class="muted">Сотрудники не найдены.</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">История начислений и списаний</div>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Сотрудник</th>
+        <th>Изменение</th>
+        <th>Баланс после</th>
+        <th>Код</th>
+        <th>Причина</th>
+        <th>Источник</th>
+        <th>Кто изменил</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Ledger }}
+        <tr>
+          <td>{{ .CreatedAt }}</td>
+          <td>{{ .UserName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>
+            {{ if ge .Change 0 }}
+              <span class="badge success">+{{ .Change }}</span>
+            {{ else }}
+              <span class="badge warning">{{ .Change }}</span>
+            {{ end }}
+          </td>
+          <td>{{ .Balance }}</td>
+          <td>{{ .ReasonCode }}</td>
+          <td>{{ if .Reason }}{{ .Reason }}{{ else }}—{{ end }}</td>
+          <td>{{ if .SourceType }}{{ .SourceType }}{{ else }}—{{ end }}</td>
+          <td>{{ if .CreatedBy }}{{ .CreatedBy }}{{ else }}Система{{ end }}</td>
+        </tr>
+      {{ else }}
+        <tr>
+          <td colspan="8" class="muted">Операции пока не зафиксированы.</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}
+
+{{ define "admin_nutrition_points" }}
+  {{ template "base" . }}
+{{ end }}

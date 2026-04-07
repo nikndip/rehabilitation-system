@@ -22,32 +22,94 @@
     <div class="info-list">
       <div><strong>ФИО:</strong> {{ .Employee.Name }}</div>
       <div><strong>ID:</strong> {{ .Employee.EmployeeID }}</div>
+      <div><strong>Корп. почта:</strong> {{ if .Employee.CorporateEmail }}{{ .Employee.CorporateEmail }}{{ else }}—{{ end }}</div>
       <div><strong>Подразделение:</strong> {{ .Employee.Department }}</div>
       <div><strong>Должность:</strong> {{ .Employee.Position }}</div>
+      <div><strong>Баллы питания:</strong> {{ .Employee.Points }}</div>
     </div>
+    <form method="post" action="/admin/nutrition/employees/{{ .Employee.ID }}/email" class="form" style="margin-top: 12px;">
+      <div class="form-group">
+        <label>Корпоративная почта</label>
+        <input type="email" name="corporate_email" value="{{ .Employee.CorporateEmail }}" placeholder="name@company.ru" />
+      </div>
+      <button class="button secondary" type="submit">Сохранить почту</button>
+    </form>
   </div>
 
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Ограничения и статус</div>
+      <div class="card-title">Настройки напоминаний</div>
     </div>
-    <div class="info-list">
-      <div><strong>Запрещено:</strong> {{ if gt (len .RestrictionSummary.HardBan) 0 }}{{ join .RestrictionSummary.HardBan ", " }}{{ else }}—{{ end }}</div>
-      <div><strong>Ограничить:</strong> {{ if gt (len .RestrictionSummary.SoftLimit) 0 }}{{ join .RestrictionSummary.SoftLimit ", " }}{{ else }}—{{ end }}</div>
-      <div><strong>Формат:</strong> {{ .RestrictionSummary.Recommended }}</div>
-      <div><strong>Дата анкеты:</strong> {{ .QuestionnaireUpdatedAt }}</div>
-      <div><strong>Статус:</strong> {{ .RestrictionSummary.Status }}</div>
-    </div>
+    <form method="post" action="/admin/nutrition/employees/{{ .Employee.ID }}/reminders" class="form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Лид напоминания (минут до приема)</label>
+          <input type="number" min="0" max="240" name="meal_reminder_lead_minutes" value="{{ .ReminderSettings.MealReminderLeadMinutes }}" />
+        </div>
+        <div class="form-group">
+          <label>Мягкий допуск приема пищи (минут)</label>
+          <input type="number" min="15" max="360" name="meal_sla_minutes" value="{{ .ReminderSettings.MealSLAMinutes }}" />
+        </div>
+      </div>
+      <div class="choice-grid">
+        <label class="choice-chip">
+          <input type="checkbox" name="hydration_1030_enabled" {{ if .ReminderSettings.Hydration1030Enabled }}checked{{ end }} />
+          <span>Вода 10:30</span>
+        </label>
+        <label class="choice-chip">
+          <input type="checkbox" name="hydration_1500_enabled" {{ if .ReminderSettings.Hydration1500Enabled }}checked{{ end }} />
+          <span>Вода 15:00</span>
+        </label>
+        <label class="choice-chip">
+          <input type="checkbox" name="hydration_1800_enabled" {{ if .ReminderSettings.Hydration1800Enabled }}checked{{ end }} />
+          <span>Вода 18:00</span>
+        </label>
+      </div>
+      <button class="button secondary" type="submit">Сохранить напоминания</button>
+    </form>
   </div>
 
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Быстрые действия</div>
+      <div class="card-title">Прогресс достижений</div>
     </div>
-    <div class="info-list">
-      <div>Администратор может обновлять анкету, вручную назначать блюда в план и обрабатывать поощрения питания.</div>
-      <div>Изменения в модуле тренировок не затрагиваются.</div>
+    <div class="grid" style="gap: 10px;">
+      {{ range .AchievementProgress }}
+        <div class="timeline-item">
+          <div style="display:flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+            <strong>{{ .Title }}</strong>
+            {{ if .Unlocked }}
+              <span class="badge success">Открыто</span>
+            {{ else }}
+              <span class="badge">В прогрессе</span>
+            {{ end }}
+          </div>
+          <div class="muted" style="margin-top: 6px;">{{ .Description }}</div>
+          <div class="progress" style="margin-top: 8px;">
+            <span style="width: {{ percent .Progress .Total }}%;"></span>
+          </div>
+          <div style="display:flex; justify-content: space-between; margin-top: 8px; gap: 8px; flex-wrap: wrap;">
+            <span class="badge">{{ .Progress }}/{{ .Total }}</span>
+            <span class="badge">+{{ .PointsReward }} баллов</span>
+          </div>
+        </div>
+      {{ else }}
+        <div class="muted">Каталог достижений пока не настроен.</div>
+      {{ end }}
     </div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Ограничения и статус</div>
+  </div>
+  <div class="info-list">
+    <div><strong>Запрещено:</strong> {{ if gt (len .RestrictionSummary.HardBan) 0 }}{{ join .RestrictionSummary.HardBan ", " }}{{ else }}—{{ end }}</div>
+    <div><strong>Ограничить:</strong> {{ if gt (len .RestrictionSummary.SoftLimit) 0 }}{{ join .RestrictionSummary.SoftLimit ", " }}{{ else }}—{{ end }}</div>
+    <div><strong>Формат:</strong> {{ .RestrictionSummary.Recommended }}</div>
+    <div><strong>Дата анкеты:</strong> {{ .QuestionnaireUpdatedAt }}</div>
+    <div><strong>Статус:</strong> {{ .RestrictionSummary.Status }}</div>
   </div>
 </div>
 

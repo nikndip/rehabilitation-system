@@ -1,4 +1,4 @@
-# Мобильное приложение для реабилитации
+# Система реабилитации сотрудников
 
 Полностью Go-приложение: сервер, шаблоны и стили. Интерфейс рендерится на сервере, данные хранятся в PostgreSQL.
 
@@ -20,10 +20,11 @@
 
 ## Seed accounts (если `SEED_DATA=true`)
 - Employee: `10001` / `password`
-- Manager: `20001` / `password`
+- Employee: `20001` / `password`
 - Admin: `90000` / `password`
 
 ## Основные страницы
 - `/login`, `/register`
-- `/` (дашборд), `/program`, `/exercises`, `/profile`
-- `/workouts/{id}`, `/sessions/{id}`
+- `/` (дашборд питания), `/nutrition/plan`, `/nutrition/meals`, `/nutrition/profile`
+- `/nutrition/leaderboard`, `/nutrition/rewards`, `/nutrition/achievements`
+- `/admin/nutrition`, `/admin/nutrition/achievements`, `/admin/nutrition/points`

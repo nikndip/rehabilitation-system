@@ -27,11 +27,7 @@
           <div class="brand-subtitle">Система реабилитации сотрудников</div>
         </div>
 
-        {{ if eq .Module "nutrition" }}
-          {{ template "nav_nutrition" . }}
-        {{ else }}
-          {{ template "nav" . }}
-        {{ end }}
+        {{ template "nav_nutrition" . }}
 
         <div class="sidebar-footer">
           {{ if .User }}
@@ -84,11 +80,7 @@
       </main>
     </div>
 
-    {{ if eq .Module "nutrition" }}
-      {{ template "mobile-nav-nutrition" . }}
-    {{ else }}
-      {{ template "mobile-nav" . }}
-    {{ end }}
+    {{ template "mobile-nav-nutrition" . }}
     <script>
       (function() {
         var toggle = document.getElementById('notifications-toggle');

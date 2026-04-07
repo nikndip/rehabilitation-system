@@ -2,7 +2,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Привет, {{ if .User }}{{ .User.Name }}{{ else }}Сотрудник{{ end }}</div>
-    <div class="page-subtitle">Сводка модуля питания: выполнение, напоминания, стрик и рекомендации недели.</div>
+    <div class="page-subtitle">Сводка модуля питания: выполнение, напоминания, серия и рекомендации недели.</div>
   </div>
   <a class="button primary" href="/nutrition/plan">Перейти к плану питания</a>
 </div>
@@ -57,10 +57,10 @@
 
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Персональный streak</div>
+      <div class="card-title">Личная серия</div>
       <span class="badge">Текущий: {{ .Stats.CurrentStreak }}</span>
     </div>
-    <div class="muted" style="margin-bottom: 8px;">Лучший streak: {{ .Stats.BestStreak }} дней подряд без пропусков.</div>
+    <div class="muted" style="margin-bottom: 8px;">Лучшая серия: {{ .Stats.BestStreak }} дней подряд без пропусков.</div>
     <div class="trend-bar nutrition-trend-bar" style="height: 10px;">
       <span style="width: {{ .StreakProgressPercent }}%;"></span>
     </div>
@@ -72,7 +72,7 @@
   <div class="card softer">
     <div class="card-header">
       <div class="card-title">Напоминания по питанию и воде</div>
-      <span class="badge">Мягкий SLA</span>
+      <span class="badge">Мягкий допуск</span>
     </div>
     <div class="grid" style="gap: 10px;">
       {{ range .Reminders }}
@@ -92,7 +92,7 @@
 
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Weekly Review</div>
+      <div class="card-title">Итоги недели</div>
       <span class="badge">3 + 2</span>
     </div>
     <div class="grid" style="gap: 10px;">

@@ -1,6 +1,32 @@
 -- +migrate Up
 create extension if not exists "uuid-ossp";
 
+-- Remove legacy/training entities to keep nutrition-only schema.
+drop table if exists workout_session_feedback cascade;
+drop table if exists workout_session_sets cascade;
+drop table if exists workout_session_exercises cascade;
+drop table if exists workout_sessions cascade;
+drop table if exists training_plan_changes cascade;
+drop table if exists training_plan_workouts cascade;
+drop table if exists training_plans cascade;
+drop table if exists user_programs cascade;
+drop table if exists program_workouts cascade;
+drop table if exists programs cascade;
+drop table if exists workout_exercises cascade;
+drop table if exists workouts cascade;
+drop table if exists exercises cascade;
+drop table if exists user_achievements cascade;
+drop table if exists achievements cascade;
+drop table if exists reward_redemptions cascade;
+drop table if exists rewards cascade;
+drop table if exists support_ticket_messages cascade;
+drop table if exists support_tickets cascade;
+drop table if exists questionnaire_responses cascade;
+drop table if exists medical_info cascade;
+drop table if exists incentive_awards cascade;
+drop table if exists password_reset_requests cascade;
+alter table if exists users drop column if exists password_temp;
+
 create table if not exists users (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
@@ -9,196 +35,15 @@ create table if not exists users (
   role text not null default 'employee',
   department text,
   position text,
-  password_temp boolean not null default false,
+  corporate_email text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create table if not exists user_profiles (
   user_id uuid primary key references users(id) on delete cascade,
-  birth_date date,
-  age int,
-  fitness_level text,
-  goals text[] not null default '{}',
+  notifications_cleared_at timestamptz,
   updated_at timestamptz not null default now()
-);
-
-create table if not exists questionnaire_responses (
-  user_id uuid primary key references users(id) on delete cascade,
-  answers jsonb not null default '{}',
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists medical_info (
-  user_id uuid primary key references users(id) on delete cascade,
-  doctor_approval boolean not null default false,
-  restrictions text[] not null default '{}',
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists exercises (
-  id uuid primary key default uuid_generate_v4(),
-  name text not null unique,
-  description text not null,
-  category text,
-  difficulty text,
-  sets int,
-  reps text,
-  duration_seconds int,
-  rest_seconds int,
-  muscle_groups text[] not null default '{}',
-  equipment text[] not null default '{}',
-  image_url text,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists workouts (
-  id uuid primary key default uuid_generate_v4(),
-  name text not null unique,
-  description text not null,
-  duration_minutes int not null,
-  difficulty text not null,
-  category text,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists workout_exercises (
-  workout_id uuid references workouts(id) on delete cascade,
-  exercise_id uuid references exercises(id) on delete cascade,
-  sort_order int not null,
-  sets int,
-  reps text,
-  duration_seconds int,
-  rest_seconds int,
-  primary key (workout_id, exercise_id)
-);
-
-create table if not exists programs (
-  id uuid primary key default uuid_generate_v4(),
-  name text not null,
-  description text not null,
-  active boolean not null default true,
-  muscle_groups text[] not null default '{}',
-  created_at timestamptz not null default now()
-);
-
-create table if not exists program_workouts (
-  program_id uuid references programs(id) on delete cascade,
-  workout_id uuid references workouts(id) on delete cascade,
-  sort_order int not null,
-  primary key (program_id, workout_id)
-);
-
-create table if not exists user_programs (
-  id uuid primary key default uuid_generate_v4(),
-  user_id uuid references users(id) on delete cascade,
-  program_id uuid references programs(id) on delete cascade,
-  start_date date not null,
-  active boolean not null default true
-);
-
-create table if not exists training_plans (
-  id uuid primary key default uuid_generate_v4(),
-  user_id uuid references users(id) on delete cascade,
-  goal text not null,
-  level text not null,
-  frequency int not null,
-  status text not null default 'active',
-  paused_reason text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists training_plan_workouts (
-  id uuid primary key default uuid_generate_v4(),
-  plan_id uuid references training_plans(id) on delete cascade,
-  workout_id uuid references workouts(id) on delete cascade,
-  week int not null,
-  day int not null,
-  scheduled_date date,
-  intensity int not null default 1,
-  status text not null default 'pending',
-  skip_reason text
-);
-
-create table if not exists training_plan_changes (
-  id uuid primary key default uuid_generate_v4(),
-  plan_id uuid references training_plans(id) on delete cascade,
-  user_id uuid references users(id) on delete cascade,
-  changed_at timestamptz not null default now(),
-  reason_code text not null,
-  reason text not null,
-  before_plan jsonb,
-  after_plan jsonb
-);
-
-create table if not exists workout_sessions (
-  id uuid primary key default uuid_generate_v4(),
-  user_id uuid references users(id) on delete cascade,
-  workout_id uuid references workouts(id) on delete cascade,
-  started_at timestamptz not null default now(),
-  completed_at timestamptz,
-  last_set_completed_at timestamptz,
-  duration_minutes int,
-  total_exercises int,
-  completed_exercises int,
-  calories_burned int,
-  plan_workout_id uuid references training_plan_workouts(id) on delete set null
-);
-
-alter table training_plan_workouts
-  add column if not exists session_id uuid references workout_sessions(id) on delete set null;
-
-create table if not exists workout_session_exercises (
-  id uuid primary key default uuid_generate_v4(),
-  session_id uuid references workout_sessions(id) on delete cascade,
-  exercise_id uuid references exercises(id) on delete cascade,
-  sort_order int not null,
-  completed_sets int not null default 0,
-  notes text,
-  completed boolean not null default false
-);
-
-create table if not exists workout_session_sets (
-  id uuid primary key default uuid_generate_v4(),
-  session_id uuid references workout_sessions(id) on delete cascade,
-  session_exercise_id uuid references workout_session_exercises(id) on delete cascade,
-  set_index int not null,
-  started_at timestamptz not null,
-  completed_at timestamptz not null,
-  duration_seconds int not null
-);
-
-create table if not exists workout_session_feedback (
-  session_id uuid primary key references workout_sessions(id) on delete cascade,
-  user_id uuid references users(id) on delete cascade,
-  perceived_exertion int,
-  tolerance int,
-  pain_level int,
-  wellbeing int,
-  comment text,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists achievements (
-  id uuid primary key default uuid_generate_v4(),
-  title text not null unique,
-  description text not null,
-  icon text not null,
-  points_reward int not null default 0,
-  metric text,
-  target int,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists user_achievements (
-  user_id uuid references users(id) on delete cascade,
-  achievement_id uuid references achievements(id) on delete cascade,
-  unlocked boolean not null default false,
-  unlocked_at timestamptz,
-  progress int not null default 0,
-  total int not null default 0,
-  primary key (user_id, achievement_id)
 );
 
 create table if not exists user_points (
@@ -206,70 +51,6 @@ create table if not exists user_points (
   points_balance int not null default 0,
   points_total int not null default 0,
   updated_at timestamptz not null default now()
-);
-
-create table if not exists rewards (
-  id uuid primary key default uuid_generate_v4(),
-  title text not null unique,
-  description text not null,
-  points_cost int not null,
-  category text,
-  active boolean not null default true
-);
-
-create table if not exists reward_redemptions (
-  id uuid primary key default uuid_generate_v4(),
-  user_id uuid references users(id) on delete cascade,
-  reward_id uuid references rewards(id) on delete cascade,
-  status text not null default 'pending',
-  redeemed_at timestamptz not null default now(),
-  handled_at timestamptz,
-  approved_by uuid references users(id) on delete set null
-);
-
-create table if not exists incentive_awards (
-  id uuid primary key default uuid_generate_v4(),
-  user_id uuid references users(id) on delete cascade,
-  points int not null,
-  reason text,
-  awarded_by uuid references users(id) on delete set null,
-  awarded_at timestamptz not null default now()
-);
-
-create table if not exists support_tickets (
-  id uuid primary key default uuid_generate_v4(),
-  user_id uuid references users(id) on delete cascade,
-  category text not null,
-  subject text not null,
-  message text not null,
-  status text not null default 'open',
-  response text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists support_ticket_messages (
-  id uuid primary key default uuid_generate_v4(),
-  ticket_id uuid references support_tickets(id) on delete cascade,
-  sender_id uuid references users(id) on delete set null,
-  sender_role text not null,
-  message text not null,
-  created_at timestamptz not null default now()
-);
-
-alter table exercises add column if not exists image_url text;
-alter table exercises drop column if exists video_url;
-alter table workout_sessions add column if not exists last_set_completed_at timestamptz;
-alter table achievements add column if not exists metric text;
-alter table achievements add column if not exists target int;
-
-create table if not exists password_reset_requests (
-  id uuid primary key default uuid_generate_v4(),
-  user_id uuid references users(id) on delete cascade,
-  status text not null default 'open',
-  created_at timestamptz not null default now(),
-  handled_at timestamptz,
-  handled_by uuid references users(id) on delete set null
 );
 
 create table if not exists sessions (
@@ -281,21 +62,282 @@ create table if not exists sessions (
 );
 
 create index if not exists idx_sessions_token on sessions(token);
-create index if not exists idx_workout_sessions_user on workout_sessions(user_id);
-create index if not exists idx_workout_session_sets_session on workout_session_sets(session_id);
-create index if not exists idx_workout_session_sets_exercise on workout_session_sets(session_exercise_id);
-create index if not exists idx_plan_user on training_plans(user_id);
-create index if not exists idx_plan_workouts_plan on training_plan_workouts(plan_id);
-create index if not exists idx_plan_workouts_status on training_plan_workouts(status);
-create index if not exists idx_plan_changes_plan on training_plan_changes(plan_id);
-create index if not exists idx_support_messages_ticket on support_ticket_messages(ticket_id);
-create index if not exists idx_password_reset_status on password_reset_requests(status);
-alter table user_profiles
-  add column if not exists notifications_cleared_at timestamptz;
-alter table user_profiles
-  add column if not exists birth_date date;
 create index if not exists idx_user_profiles_notifications_cleared_at
   on user_profiles(notifications_cleared_at);
+create index if not exists idx_users_corporate_email_lower
+  on users (lower(corporate_email))
+  where corporate_email is not null and btrim(corporate_email) <> '';
+
+create table if not exists nutrition_plan_meals (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(id) on delete cascade,
+  day_key text not null,
+  meal_slot text not null,
+  meal_id text not null,
+  meal_name text not null,
+  calories int not null default 0,
+  protein int not null default 0,
+  carbs int not null default 0,
+  fats int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  status text not null default 'planned',
+  planned_time text not null default '',
+  smart_swap_from_meal_id text,
+  completed_at timestamptz,
+  skipped_at timestamptz,
+  unique (user_id, day_key, meal_slot)
+);
+
+create index if not exists idx_nutrition_plan_meals_user_day
+  on nutrition_plan_meals(user_id, day_key);
+
+create table if not exists nutrition_day_progress (
+  user_id uuid not null references users(id) on delete cascade,
+  day_date date not null,
+  day_key text not null,
+  completed_slots int not null default 0,
+  total_slots int not null default 4,
+  day_completed boolean not null default false,
+  points_awarded boolean not null default false,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, day_date)
+);
+
+create index if not exists idx_nutrition_day_progress_user_date
+  on nutrition_day_progress(user_id, day_date desc);
+
+create table if not exists nutrition_user_stats (
+  user_id uuid primary key references users(id) on delete cascade,
+  current_streak int not null default 0,
+  best_streak int not null default 0,
+  total_completed_days int not null default 0,
+  last_completed_day date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists nutrition_reward_redemptions (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(id) on delete cascade,
+  reward_id text not null,
+  reward_title text not null,
+  points_cost int not null default 0,
+  status text not null default 'issued',
+  redeemed_at timestamptz not null default now(),
+  used_at timestamptz
+);
+
+create index if not exists idx_nutrition_reward_redemptions_user
+  on nutrition_reward_redemptions(user_id, redeemed_at desc);
+
+create table if not exists nutrition_events (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(id) on delete cascade,
+  message text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_nutrition_events_user
+  on nutrition_events(user_id, created_at desc);
+
+create table if not exists nutrition_questionnaire_responses (
+  user_id uuid primary key references users(id) on delete cascade,
+  answers jsonb not null default '{}',
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists nutrition_hydration_logs (
+  user_id uuid not null references users(id) on delete cascade,
+  day_date date not null,
+  day_key text not null,
+  reminder_key text not null,
+  status text not null default 'planned',
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, day_date, reminder_key)
+);
+
+create index if not exists idx_nutrition_hydration_logs_user_date
+  on nutrition_hydration_logs(user_id, day_date desc);
+
+create table if not exists nutrition_reminder_settings (
+  user_id uuid primary key references users(id) on delete cascade,
+  meal_reminder_lead_minutes int not null default 20,
+  meal_sla_minutes int not null default 60,
+  hydration_1030_enabled boolean not null default true,
+  hydration_1500_enabled boolean not null default true,
+  hydration_1800_enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (meal_reminder_lead_minutes >= 0 and meal_reminder_lead_minutes <= 240),
+  check (meal_sla_minutes >= 15 and meal_sla_minutes <= 360)
+);
+
+create table if not exists nutrition_achievement_rules (
+  id uuid primary key default uuid_generate_v4(),
+  rule_code text not null unique,
+  metric_key text not null,
+  window_days int not null default 0,
+  target_value int not null,
+  description text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (target_value > 0),
+  check (window_days >= 0)
+);
+
+create table if not exists nutrition_achievement_catalog (
+  id uuid primary key default uuid_generate_v4(),
+  code text not null unique,
+  title text not null,
+  description text not null,
+  icon text not null default '🏅',
+  points_reward int not null default 0,
+  rule_id uuid not null references nutrition_achievement_rules(id) on delete cascade,
+  active boolean not null default true,
+  sort_order int not null default 100,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (points_reward >= 0)
+);
+
+create table if not exists nutrition_user_achievements (
+  user_id uuid not null references users(id) on delete cascade,
+  achievement_id uuid not null references nutrition_achievement_catalog(id) on delete cascade,
+  progress int not null default 0,
+  target int not null default 0,
+  unlocked boolean not null default false,
+  unlocked_at timestamptz,
+  last_progress_at timestamptz,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, achievement_id)
+);
+
+create index if not exists idx_nutrition_user_achievements_user
+  on nutrition_user_achievements(user_id, unlocked, updated_at desc);
+
+create table if not exists nutrition_points_ledger (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(id) on delete cascade,
+  change_amount int not null,
+  balance_after int,
+  reason_code text not null,
+  reason text not null default '',
+  source_type text not null default 'system',
+  source_id text,
+  created_by uuid references users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_nutrition_points_ledger_user_created
+  on nutrition_points_ledger(user_id, created_at desc);
+
+create table if not exists nutrition_day_event_history (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(id) on delete cascade,
+  day_date date not null,
+  day_key text not null,
+  event_type text not null,
+  slot_key text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_nutrition_day_event_history_user_day
+  on nutrition_day_event_history(user_id, day_date desc, created_at desc);
+
+insert into nutrition_achievement_rules (rule_code, metric_key, window_days, target_value, description)
+values
+  ('nutri-streak-7', 'best_streak', 0, 7, '7 дней подряд без пропусков основного рациона'),
+  ('nutri-hydration-14', 'hydration_days_total', 0, 14, '14 дней с отмеченным водным балансом'),
+  ('nutri-days-10', 'completed_days_total', 0, 10, '10 полностью закрытых дней питания'),
+  ('nutri-days-12', 'completed_days_total', 0, 12, '12 дней с устойчивым вечерним режимом'),
+  ('nutri-days-30', 'completed_days_total', 0, 30, '30 дней по плану питания')
+on conflict (rule_code)
+do update set metric_key = excluded.metric_key,
+              window_days = excluded.window_days,
+              target_value = excluded.target_value,
+              description = excluded.description,
+              updated_at = now();
+
+insert into nutrition_achievement_catalog (code, title, description, icon, points_reward, rule_id, active, sort_order)
+select 'nutri-7-days', '7 дней режима', '7 дней подряд без пропуска основного рациона.', '🥗', 40, id, true, 10
+from nutrition_achievement_rules
+where rule_code = 'nutri-streak-7'
+on conflict (code)
+do update set title = excluded.title,
+              description = excluded.description,
+              icon = excluded.icon,
+              points_reward = excluded.points_reward,
+              rule_id = excluded.rule_id,
+              active = excluded.active,
+              sort_order = excluded.sort_order,
+              updated_at = now();
+
+insert into nutrition_achievement_catalog (code, title, description, icon, points_reward, rule_id, active, sort_order)
+select 'nutri-water-balance', 'Водный баланс', 'Отмечайте водный баланс не менее 14 дней.', '💧', 50, id, true, 20
+from nutrition_achievement_rules
+where rule_code = 'nutri-hydration-14'
+on conflict (code)
+do update set title = excluded.title,
+              description = excluded.description,
+              icon = excluded.icon,
+              points_reward = excluded.points_reward,
+              rule_id = excluded.rule_id,
+              active = excluded.active,
+              sort_order = excluded.sort_order,
+              updated_at = now();
+
+insert into nutrition_achievement_catalog (code, title, description, icon, points_reward, rule_id, active, sort_order)
+select 'nutri-protein-focus', 'Белковый фокус', 'Закройте 10 полноценных дней питания по плану.', '🍗', 45, id, true, 30
+from nutrition_achievement_rules
+where rule_code = 'nutri-days-10'
+on conflict (code)
+do update set title = excluded.title,
+              description = excluded.description,
+              icon = excluded.icon,
+              points_reward = excluded.points_reward,
+              rule_id = excluded.rule_id,
+              active = excluded.active,
+              sort_order = excluded.sort_order,
+              updated_at = now();
+
+insert into nutrition_achievement_catalog (code, title, description, icon, points_reward, rule_id, active, sort_order)
+select 'nutri-stable-dinner', 'Стабильный ужин', 'Соблюдайте вечерний режим 12 дней по плану питания.', '🌙', 35, id, true, 40
+from nutrition_achievement_rules
+where rule_code = 'nutri-days-12'
+on conflict (code)
+do update set title = excluded.title,
+              description = excluded.description,
+              icon = excluded.icon,
+              points_reward = excluded.points_reward,
+              rule_id = excluded.rule_id,
+              active = excluded.active,
+              sort_order = excluded.sort_order,
+              updated_at = now();
+
+insert into nutrition_achievement_catalog (code, title, description, icon, points_reward, rule_id, active, sort_order)
+select 'nutri-month-recovery', 'Месяц восстановления', 'Закройте 30 дней питания по плану.', '🏅', 120, id, true, 50
+from nutrition_achievement_rules
+where rule_code = 'nutri-days-30'
+on conflict (code)
+do update set title = excluded.title,
+              description = excluded.description,
+              icon = excluded.icon,
+              points_reward = excluded.points_reward,
+              rule_id = excluded.rule_id,
+              active = excluded.active,
+              sort_order = excluded.sort_order,
+              updated_at = now();
+
+update users
+set role = 'employee',
+    updated_at = now()
+where role = 'manager';
 
 -- +migrate Down
--- (intentionally left blank)
+-- One-file migration mode: rollback is intentionally not supported.

@@ -16,6 +16,20 @@
 
 <div class="notice" style="margin-bottom: 16px;">Последнее обновление анкеты: {{ .UpdatedAt }}</div>
 
+<div class="card" style="margin-bottom: 16px;">
+  <div class="quiz-progress">
+    <div class="card-title">Прогресс анкеты</div>
+    <div class="quiz-stepper">
+      <span class="quiz-step-indicator active">1. Ограничения</span>
+      <span class="quiz-step-indicator active">2. Реакции</span>
+      <span class="quiz-step-indicator active">3. Режим</span>
+      <span class="quiz-step-indicator active">4. Цели</span>
+      <span class="quiz-step-indicator active">5. Предпочтения</span>
+    </div>
+    <div class="muted">Заполните все блоки и сохраните анкету для корректного расчета рекомендаций.</div>
+  </div>
+</div>
+
 <form method="post" action="/nutrition/questionnaire" class="form">
   <div class="card" style="margin-bottom: 16px;">
     <div class="card-title">1. Медицинские ограничения (жесткие)</div>

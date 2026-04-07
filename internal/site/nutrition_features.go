@@ -594,8 +594,11 @@ func normalizeNutritionHydrationStatus(value string) string {
 	}
 }
 
-func nutritionHydrationReminderState(dayDate time.Time, plannedTime, status string, now time.Time) (string, string) {
+func nutritionHydrationReminderState(dayDate time.Time, plannedTime, status string, now time.Time, slaMinutes int) (string, string) {
 	status = normalizeNutritionHydrationStatus(status)
+	if slaMinutes < 15 {
+		slaMinutes = nutritionReminderSLAMinutes
+	}
 	if status == "completed" {
 		return "Выполнено", "Водный чекпоинт закрыт"
 	}
@@ -616,8 +619,8 @@ func nutritionHydrationReminderState(dayDate time.Time, plannedTime, status stri
 	if now.Before(due) {
 		return "Напоминание", "Плановая точка воды"
 	}
-	if now.Before(due.Add(time.Duration(nutritionReminderSLAMinutes) * time.Minute)) {
-		return "Мягкий SLA", "Рекомендуется закрыть чекпоинт в течение часа"
+	if now.Before(due.Add(time.Duration(slaMinutes) * time.Minute)) {
+		return "Мягкий допуск", "Рекомендуется закрыть чекпоинт в течение часа"
 	}
 	return "Просрочено", "Требуется отметка выполнения или очистка"
 }
@@ -664,17 +667,29 @@ func (s *Site) loadNutritionHydrationLogs(userID string, weekStart time.Time) ma
 	return logs
 }
 
-func applyNutritionHydrationReminders(planDays []nutritionPlanDay, hydrationLogs map[string]map[string]nutritionHydrationLogRecord, now time.Time) {
+func applyNutritionHydrationReminders(
+	planDays []nutritionPlanDay,
+	hydrationLogs map[string]map[string]nutritionHydrationLogRecord,
+	now time.Time,
+	reminderSettings nutritionReminderSettings,
+) {
+	options := nutritionHydrationReminderOptionsForSettings(reminderSettings)
 	for i := range planDays {
-		planDays[i].HydrationReminders = make([]nutritionHydrationReminderView, 0, len(nutritionHydrationReminderOptions()))
-		for _, option := range nutritionHydrationReminderOptions() {
+		planDays[i].HydrationReminders = make([]nutritionHydrationReminderView, 0, len(options))
+		for _, option := range options {
 			record := nutritionHydrationLogRecord{Status: "planned"}
 			if dayLogs, exists := hydrationLogs[planDays[i].DayKey]; exists {
 				if item, ok := dayLogs[option.Key]; ok {
 					record = item
 				}
 			}
-			state, hint := nutritionHydrationReminderState(planDays[i].DayDate, option.Time, record.Status, now)
+			state, hint := nutritionHydrationReminderState(
+				planDays[i].DayDate,
+				option.Time,
+				record.Status,
+				now,
+				reminderSettings.MealSLAMinutes,
+			)
 			view := nutritionHydrationReminderView{
 				ReminderKey: option.Key,
 				Time:        option.Time,
@@ -723,6 +738,10 @@ func (s *Site) nutritionHydrationComplete(w http.ResponseWriter, r *http.Request
 
 	timeLabel := nutritionHydrationReminderTime(reminderKey)
 	s.insertNutritionEvent(user.ID, "Водный чекпоинт "+timeLabel+" выполнен.")
+	s.insertNutritionDayEvent(user.ID, dayKey, "hydration_completed", reminderKey, dayDate, map[string]any{
+		"reminder_time": timeLabel,
+	})
+	_, _ = s.refreshNutritionAchievements(user.ID)
 	http.Redirect(w, r, "/nutrition/plan?success="+url.QueryEscape("Водный чекпоинт "+timeLabel+" отмечен как выполненный"), http.StatusSeeOther)
 }
 
@@ -760,11 +779,24 @@ func (s *Site) nutritionHydrationClear(w http.ResponseWriter, r *http.Request) {
 
 	timeLabel := nutritionHydrationReminderTime(reminderKey)
 	s.insertNutritionEvent(user.ID, "Водный чекпоинт "+timeLabel+" очищен.")
+	s.insertNutritionDayEvent(user.ID, dayKey, "hydration_cleared", reminderKey, dayDate, map[string]any{
+		"reminder_time": timeLabel,
+	})
+	_, _ = s.refreshNutritionAchievements(user.ID)
 	http.Redirect(w, r, "/nutrition/plan?success="+url.QueryEscape("Водный чекпоинт "+timeLabel+" очищен"), http.StatusSeeOther)
 }
 
 func (s *Site) loadNutritionNotificationEntries(userID string, clearedAt, now time.Time) []notificationHistoryEntry {
 	entries := []notificationHistoryEntry{}
+	reminderSettings := s.loadNutritionReminderSettings(userID)
+	mealLead := time.Duration(reminderSettings.MealReminderLeadMinutes) * time.Minute
+	mealSLA := time.Duration(reminderSettings.MealSLAMinutes) * time.Minute
+	if mealLead < 0 {
+		mealLead = 20 * time.Minute
+	}
+	if mealSLA < 15*time.Minute {
+		mealSLA = time.Duration(nutritionReminderSLAMinutes) * time.Minute
+	}
 
 	rows, err := s.DB.Query(
 		`select message, created_at
@@ -817,7 +849,7 @@ func (s *Site) loadNutritionNotificationEntries(userID string, clearedAt, now ti
 					continue
 				}
 				slotLabel := nutritionSlotLabel(mealSlot)
-				if now.After(due.Add(time.Duration(nutritionReminderSLAMinutes) * time.Minute)) {
+				if now.After(due.Add(mealSLA)) {
 					reason := "Просрочен прием пищи: " + slotLabel
 					if strings.TrimSpace(mealName) != "" {
 						reason += " («" + mealName + "»)"
@@ -825,7 +857,7 @@ func (s *Site) loadNutritionNotificationEntries(userID string, clearedAt, now ti
 					entries = append(entries, notificationHistoryEntry{When: due, Reason: reason})
 					continue
 				}
-				if now.After(due.Add(-20 * time.Minute)) {
+				if now.After(due.Add(-mealLead)) {
 					reason := "Напоминание: прием пищи " + slotLabel + " в " + plannedTime
 					if strings.TrimSpace(mealName) != "" {
 						reason += " («" + mealName + "»)"
@@ -867,7 +899,7 @@ func (s *Site) loadNutritionNotificationEntries(userID string, clearedAt, now ti
 		}
 	}
 
-	for _, option := range nutritionHydrationReminderOptions() {
+	for _, option := range nutritionHydrationReminderOptionsForSettings(reminderSettings) {
 		record, exists := logs[option.Key]
 		if exists && (record.Status == "completed" || record.Status == "cleared") {
 			continue
@@ -876,11 +908,11 @@ func (s *Site) loadNutritionNotificationEntries(userID string, clearedAt, now ti
 		if !ok || !due.After(clearedAt) {
 			continue
 		}
-		if now.After(due.Add(time.Duration(nutritionReminderSLAMinutes) * time.Minute)) {
+		if now.After(due.Add(mealSLA)) {
 			entries = append(entries, notificationHistoryEntry{When: due, Reason: "Просрочен водный чекпоинт: " + option.Time})
 			continue
 		}
-		if now.After(due.Add(-20 * time.Minute)) {
+		if now.After(due.Add(-mealLead)) {
 			entries = append(entries, notificationHistoryEntry{When: due, Reason: "Напоминание по воде: чекпоинт " + option.Time})
 		}
 	}

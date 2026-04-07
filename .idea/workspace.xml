@@ -6,6 +6,67 @@
   <component name="ChangeListManager">
     <list default="true" id="888b7ea2-faa1-4695-8d42-a37855f4f386" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/db/migrations.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/db/migrations.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/db/seed.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/db/seed.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/middleware/session.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/middleware/session.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/models/models.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/models/models.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/site/admin_content.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/site/admin_nutrition.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/site/admin_nutrition.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/site/nutrition.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/site/nutrition.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/site/nutrition_features.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/site/nutrition_features.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/site/portal.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/site/site.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/site/site.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/site/training.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/render.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/render.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/static/app.css" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/static/app.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/base.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/base.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/achievements.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_achievements.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_exercises.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_feedback.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_nutrition.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/pages/admin_nutrition.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_nutrition_employee.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/pages/admin_nutrition_employee.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_plan_detail.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_plans.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_program_detail.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_programs.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_rewards.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_support.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_workout_detail.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/admin_workouts.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/change_password.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/dashboard.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/exercise.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/exercises.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/leaderboard.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/login.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/pages/login.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/manager.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/manager_employee.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/module_selector.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/nutrition_dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/pages/nutrition_dashboard.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/nutrition_plan.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/pages/nutrition_plan.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/nutrition_profile.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/pages/nutrition_profile.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/nutrition_questionnaire.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/pages/nutrition_questionnaire.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/nutrition_rewards.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/pages/nutrition_rewards.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/password_reset.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/profile.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/program.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/program_detail.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/questionnaire.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/register.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/pages/register.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/rewards.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/session.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/support.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/pages/workout.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/partials/nav.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/web/templates/partials/nav_nutrition.html" beforeDir="false" afterPath="$PROJECT_DIR$/internal/web/templates/partials/nav_nutrition.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/migrations/001_init.sql" beforeDir="false" afterPath="$PROJECT_DIR$/migrations/001_init.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/migrations/002_nutrition_plan_meals.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/migrations/003_nutrition_progress.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/migrations/004_nutrition_questionnaire_hydration.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/exercise_ZyO-1M_macU.png" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -13,18 +74,23 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="64" />
+    <option name="cachedIndexableFilesCount" value="77" />
   </component>
   <component name="GOROOT" url="file://$USER_HOME$/sdk/go1.25.6" />
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "dplvv"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;dplvv&quot;
   }
-}]]></component>
+}</component>
   <component name="GithubPullRequestsUISettings"><![CDATA[{
   "selectedUrlAndAccountId": {
     "url": "https://github.com/nikndip/rehabilitation-system.git",
@@ -35,9 +101,9 @@
     <commands />
     <urls />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 3
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 3
+}</component>
   <component name="ProjectId" id="39uC8xav6yKHtQHIUndYqoGYKv8" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -56,19 +122,31 @@
     "RunOnceActivity.go.formatter.settings.were.checked": "true",
     "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "master",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "nikndip",
     "go.sdk.automatically.set": "true",
+    "junie.onboarding.icon.badge.shown": "true",
     "last_opened_file_path": "/Users/dplvv",
     "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm"
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
+  },
+  "keyToStringList": {
+    "DatabaseDriversLRU": [
+      "postgresql"
+    ]
   }
 }]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-gosdk-72a9cf600ed8-a2fbcbb11fa2-org.jetbrains.plugins.go.sharedIndexes.bundled-GO-261.20869.48" />
-        <option value="bundled-js-predefined-d6986cc7102b-123751820ffe-JavaScript-GO-261.20869.48" />
+        <option value="bundled-gosdk-72a9cf600ed8-18ba651b3ff7-org.jetbrains.plugins.go.sharedIndexes.bundled-GO-261.22158.120" />
+        <option value="bundled-js-predefined-d6986cc7102b-3bd3a6803838-JavaScript-GO-261.22158.120" />
       </set>
     </attachedChunks>
   </component>
@@ -79,6 +157,10 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1771536415486</updated>
+      <workItem from="1773523642324" duration="607000" />
+      <workItem from="1774001108335" duration="98000" />
+      <workItem from="1774001219145" duration="4000" />
+      <workItem from="1774001480430" duration="15000" />
     </task>
     <servers />
   </component>

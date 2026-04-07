@@ -92,9 +92,9 @@
                   <div class="muted" style="margin-top: 4px;">
                     Отмечено в {{ .CompletedAt }}
                     {{ if .CompletedOnTime }}
-                      (в рамках мягкого SLA)
+                      (в рамках мягкого допуска)
                     {{ else }}
-                      (после SLA)
+                      (после мягкого допуска)
                     {{ end }}
                   </div>
                 {{ end }}
@@ -125,7 +125,7 @@
       <div class="card softer" style="margin-top: 12px;">
         <div class="card-header">
           <div class="card-title">Водные чекпоинты</div>
-          <span class="badge">Контроль по SLA</span>
+          <span class="badge">Контроль по времени</span>
         </div>
         <div class="grid" style="gap: 10px;">
           {{ range .HydrationReminders }}

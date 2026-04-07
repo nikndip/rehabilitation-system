@@ -2,10 +2,12 @@ package site
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -138,6 +140,7 @@ type nutritionAchievementView struct {
 
 type nutritionProfileView struct {
 	EmployeeID      string
+	CorporateEmail  string
 	Department      string
 	Position        string
 	NutritionTarget string
@@ -194,12 +197,6 @@ type nutritionAssignmentRecord struct {
 	SmartSwapFromMealID string
 }
 
-func (s *Site) moduleSelectorPage(w http.ResponseWriter, r *http.Request) {
-	data := s.baseData(r, "Выбор модуля", "")
-	data["HideNav"] = true
-	s.render(w, "module_selector", data)
-}
-
 func (s *Site) nutritionDashboardPage(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 	now := time.Now()
@@ -244,9 +241,9 @@ func (s *Site) nutritionDashboardPage(w http.ResponseWriter, r *http.Request) {
 	data["ChallengeItems"] = []nutritionChallengeItem{
 		{Title: "3 дня подряд без пропуска приема", Points: 20, Completed: stats.CurrentStreak >= 3},
 		{Title: "Закрыть 4 приема за день", Points: nutritionDayCompletionPts, Completed: stats.ComplianceScore >= 90},
-		{Title: "5 дней с мягким SLA без просрочек", Points: 30, Completed: stats.ComplianceScore >= 80},
+		{Title: "5 дней с мягким допуском без просрочек", Points: 30, Completed: stats.ComplianceScore >= 80},
 	}
-	data["Trend"] = nutritionTrend()
+	data["Trend"] = s.loadNutritionTrendForUser(user.ID, now)
 	data["TrendBadge"] = "Последние 7 дней"
 	data["StreakProgressPercent"] = streakProgressPercent
 	data["Reminders"] = reminders
@@ -368,6 +365,12 @@ func (s *Site) nutritionMealAssign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.insertNutritionEvent(user.ID, "План обновлен: «"+meal.Name+"» назначено на "+nutritionDayLabel(dayKey)+" ("+nutritionSlotLabel(targetSlot)+").")
+	if dayDate, ok := nutritionDayDate(nutritionWeekStart(time.Now()), dayKey); ok {
+		s.insertNutritionDayEvent(user.ID, dayKey, "meal_assigned", targetSlot, dayDate, map[string]any{
+			"meal_id":   meal.ID,
+			"meal_name": meal.Name,
+		})
+	}
 	success := "Блюдо «" + meal.Name + "» добавлено на " + nutritionDayLabel(dayKey) + " (" + nutritionSlotLabel(targetSlot) + ")"
 
 	if returnTo := nutritionSafeReturnPath(r.FormValue("return_to")); returnTo != "" {
@@ -398,8 +401,12 @@ func (s *Site) nutritionPlanMealComplete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	s.insertNutritionEvent(user.ID, "Выполнен прием пищи: "+slot.SlotLabel+" ("+slot.MealName+").")
 	dayDate, _ := nutritionDayDate(nutritionWeekStart(time.Now()), dayKey)
+	s.insertNutritionEvent(user.ID, "Выполнен прием пищи: "+slot.SlotLabel+" ("+slot.MealName+").")
+	s.insertNutritionDayEvent(user.ID, dayKey, "meal_completed", slotKey, dayDate, map[string]any{
+		"meal_id":   slot.MealID,
+		"meal_name": slot.MealName,
+	})
 	awarded, _ := s.refreshNutritionDayProgress(user.ID, dayKey, dayDate)
 
 	success := "Отмечено: «" + slot.SlotLabel + "» выполнен"
@@ -430,8 +437,12 @@ func (s *Site) nutritionPlanMealSkip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.insertNutritionEvent(user.ID, "Прием пищи пропущен: "+slot.SlotLabel+" ("+slot.MealName+").")
 	dayDate, _ := nutritionDayDate(nutritionWeekStart(time.Now()), dayKey)
+	s.insertNutritionEvent(user.ID, "Прием пищи пропущен: "+slot.SlotLabel+" ("+slot.MealName+").")
+	s.insertNutritionDayEvent(user.ID, dayKey, "meal_skipped", slotKey, dayDate, map[string]any{
+		"meal_id":   slot.MealID,
+		"meal_name": slot.MealName,
+	})
 	_, _ = s.refreshNutritionDayProgress(user.ID, dayKey, dayDate)
 	http.Redirect(w, r, "/nutrition/plan?success="+url.QueryEscape("Прием отмечен как пропущенный. Нажмите «Умная замена» для быстрого эквивалента по КБЖУ."), http.StatusSeeOther)
 }
@@ -467,18 +478,21 @@ func (s *Site) nutritionPlanMealSmartReplace(w http.ResponseWriter, r *http.Requ
 	}
 
 	s.insertNutritionEvent(user.ID, "Умная замена: "+slot.SlotLabel+" заменен на «"+replacement.Name+"».")
+	if dayDate, ok := nutritionDayDate(nutritionWeekStart(time.Now()), dayKey); ok {
+		s.insertNutritionDayEvent(user.ID, dayKey, "meal_smart_swap", slotKey, dayDate, map[string]any{
+			"from_meal_id":   slot.MealID,
+			"from_meal_name": slot.MealName,
+			"to_meal_id":     replacement.ID,
+			"to_meal_name":   replacement.Name,
+		})
+	}
 	success := "Умная замена применена: «" + replacement.Name + "». " + reason
 	http.Redirect(w, r, "/nutrition/plan?success="+url.QueryEscape(success), http.StatusSeeOther)
 }
 
 func (s *Site) nutritionLeaderboardPage(w http.ResponseWriter, r *http.Request) {
 	data := s.nutritionBaseData(r, "Рейтинг питания", "nutrition-leaderboard")
-	data["Leaderboard"] = []nutritionLeaderboardRow{
-		{Name: "Алексей Иванов", Department: "Реакторный цех", Points: 420, Days: 26, Compliance: 92, Hydration: 90, LastCheckin: "Сегодня"},
-		{Name: "Елена Петрова", Department: "Безопасность", Points: 390, Days: 24, Compliance: 89, Hydration: 86, LastCheckin: "Вчера"},
-		{Name: "Максим Власов", Department: "Инженерный отдел", Points: 360, Days: 23, Compliance: 84, Hydration: 88, LastCheckin: "Сегодня"},
-		{Name: "Ирина Смирнова", Department: "Логистика", Points: 340, Days: 21, Compliance: 81, Hydration: 83, LastCheckin: "2 дня назад"},
-	}
+	data["Leaderboard"] = s.loadNutritionLeaderboard(50)
 	s.render(w, "nutrition_leaderboard", data)
 }
 
@@ -523,21 +537,22 @@ func (s *Site) nutritionRewardRedeem(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	res, err := tx.Exec(
-		`update user_points
-		 set points_balance = points_balance - $1,
-		     updated_at = now()
-		 where user_id = $2 and points_balance >= $1`,
-		reward.PointsCost,
+	_, err = s.applyNutritionPointsChangeTx(
+		tx,
+		user.ID,
+		-reward.PointsCost,
+		"reward_redeem",
+		"Списание за поощрение «"+reward.Title+"»",
+		"nutrition_reward",
+		reward.ID,
 		user.ID,
 	)
 	if err != nil {
-		http.Redirect(w, r, "/nutrition/rewards?error=Не%20удалось%20списать%20баллы", http.StatusSeeOther)
-		return
-	}
-	affected, _ := res.RowsAffected()
-	if affected == 0 {
-		http.Redirect(w, r, "/nutrition/rewards?error=Недостаточно%20баллов", http.StatusSeeOther)
+		if errors.Is(err, errNutritionInsufficientPoints) {
+			http.Redirect(w, r, "/nutrition/rewards?error=Недостаточно%20баллов", http.StatusSeeOther)
+			return
+		}
+		http.Redirect(w, r, "/nutrition/rewards?error=Не%20удалось%20обновить%20баланс%20баллов", http.StatusSeeOther)
 		return
 	}
 
@@ -564,14 +579,9 @@ func (s *Site) nutritionRewardRedeem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Site) nutritionAchievementsPage(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
 	data := s.nutritionBaseData(r, "Достижения питания", "nutrition-achievements")
-	data["Achievements"] = []nutritionAchievementView{
-		{Title: "7 дней режима", Description: "7 дней подряд без пропуска основного рациона.", Icon: "🥗", Unlocked: true, Progress: 7, Total: 7, PointsReward: 40},
-		{Title: "Водный баланс", Description: "Выполняйте норму воды 14 дней подряд.", Icon: "💧", Unlocked: false, Progress: 9, Total: 14, PointsReward: 50},
-		{Title: "Белковый фокус", Description: "Достигайте цели по белку 10 дней подряд.", Icon: "🍗", Unlocked: false, Progress: 6, Total: 10, PointsReward: 45},
-		{Title: "Стабильный ужин", Description: "Легкий ужин до 20:00 в течение 12 дней.", Icon: "🌙", Unlocked: false, Progress: 8, Total: 12, PointsReward: 35},
-		{Title: "Месяц восстановления", Description: "30 дней по плану питания без больших отклонений.", Icon: "🏅", Unlocked: false, Progress: 18, Total: 30, PointsReward: 120},
-	}
+	data["Achievements"] = s.loadNutritionAchievementsView(user.ID)
 	s.render(w, "nutrition_achievements", data)
 }
 
@@ -587,6 +597,7 @@ func (s *Site) nutritionProfilePage(w http.ResponseWriter, r *http.Request) {
 	currentStreak, bestStreak := s.loadNutritionStreak(user.ID)
 	data["CurrentStreak"] = currentStreak
 	data["BestStreak"] = bestStreak
+	data["ReminderSettings"] = s.loadNutritionReminderSettings(user.ID)
 	data["RewardHistory"] = s.loadNutritionRewardHistory(user.ID)
 	data["RestrictionSummary"] = summary
 
@@ -594,6 +605,7 @@ func (s *Site) nutritionProfilePage(w http.ResponseWriter, r *http.Request) {
 		EmployeeID:      user.EmployeeID,
 		Department:      user.Department,
 		Position:        user.Position,
+		CorporateEmail:  user.CorporateEmail,
 		NutritionTarget: nutritionOrDefault(questionnaire.NutritionGoal, "Поддержка восстановления и стабильная энергия"),
 		DailyCalories:   nutritionIntOrDefault(questionnaire.CaloriesTarget, 2100),
 		WaterTarget:     nutritionOrDefault(questionnaire.WaterTargetLiters, "1.8") + " л/день",
@@ -601,6 +613,31 @@ func (s *Site) nutritionProfilePage(w http.ResponseWriter, r *http.Request) {
 		Restrictions:    summary.SoftLimit,
 	}
 	s.render(w, "nutrition_profile", data)
+}
+
+func (s *Site) nutritionProfileReminderSettingsUpdate(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/nutrition/profile?error=Некорректные%20данные%20настроек", http.StatusSeeOther)
+		return
+	}
+
+	leadMinutes, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("meal_reminder_lead_minutes")))
+	slaMinutes, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("meal_sla_minutes")))
+	settings := nutritionReminderSettings{
+		MealReminderLeadMinutes: leadMinutes,
+		MealSLAMinutes:          slaMinutes,
+		Hydration1030Enabled:    strings.TrimSpace(r.FormValue("hydration_1030_enabled")) == "on",
+		Hydration1500Enabled:    strings.TrimSpace(r.FormValue("hydration_1500_enabled")) == "on",
+		Hydration1800Enabled:    strings.TrimSpace(r.FormValue("hydration_1800_enabled")) == "on",
+	}
+	if err := s.saveNutritionReminderSettings(user.ID, settings); err != nil {
+		http.Redirect(w, r, "/nutrition/profile?error=Не%20удалось%20сохранить%20настройки%20напоминаний", http.StatusSeeOther)
+		return
+	}
+
+	s.insertNutritionEvent(user.ID, "Настройки напоминаний по питанию обновлены.")
+	http.Redirect(w, r, "/nutrition/profile?success=Настройки%20напоминаний%20обновлены", http.StatusSeeOther)
 }
 
 func (s *Site) nutritionRewardUse(w http.ResponseWriter, r *http.Request) {
@@ -666,9 +703,10 @@ func (s *Site) buildNutritionPlan(userID string, now time.Time) []nutritionPlanD
 	planDays := nutritionPlanWeek(now)
 	assignments := s.loadNutritionMealAssignments(userID)
 	rules := s.nutritionDietRulesForUser(userID)
-	applyNutritionAssignments(planDays, assignments, now, rules)
+	reminderSettings := s.loadNutritionReminderSettings(userID)
+	applyNutritionAssignments(planDays, assignments, now, rules, reminderSettings)
 	hydrationLogs := s.loadNutritionHydrationLogs(userID, nutritionWeekStart(now))
-	applyNutritionHydrationReminders(planDays, hydrationLogs, now)
+	applyNutritionHydrationReminders(planDays, hydrationLogs, now, reminderSettings)
 	return planDays
 }
 
@@ -770,6 +808,17 @@ func (s *Site) upsertNutritionMealStatus(userID, dayKey, slot string, slotView n
 }
 
 func (s *Site) refreshNutritionDayProgress(userID, dayKey string, dayDate time.Time) (bool, error) {
+	dayDate = nutritionDateOnly(dayDate)
+	var previousDayCompleted bool
+	var previousPointsAwarded bool
+	_ = s.DB.QueryRow(
+		`select coalesce(day_completed, false), coalesce(points_awarded, false)
+		 from nutrition_day_progress
+		 where user_id = $1 and day_date = $2`,
+		userID,
+		dayDate,
+	).Scan(&previousDayCompleted, &previousPointsAwarded)
+
 	var completedCount int
 	if err := s.DB.QueryRow(
 		`select count(*)
@@ -822,40 +871,39 @@ func (s *Site) refreshNutritionDayProgress(userID, dayKey string, dayDate time.T
 	}
 
 	awarded := false
-	if dayCompleted {
-		var pointsAwarded bool
-		_ = s.DB.QueryRow(
-			`select coalesce(points_awarded, false)
-			 from nutrition_day_progress
-			 where user_id = $1 and day_date = $2`,
+	if dayCompleted && !previousPointsAwarded {
+		if _, pointsErr := s.applyNutritionPointsChange(
 			userID,
-			dayDate,
-		).Scan(&pointsAwarded)
-		if !pointsAwarded {
-			_ = db.EnsureUserDefaults(s.DB, userID)
-			_, err = s.DB.Exec(
-				`update user_points
-				 set points_balance = points_balance + $1,
-				     points_total = points_total + $1,
-				     updated_at = now()
-				 where user_id = $2`,
-				nutritionDayCompletionPts,
+			nutritionDayCompletionPts,
+			"day_completion",
+			"Начисление за полностью закрытый день питания",
+			"nutrition_day_progress",
+			dayDate.Format("2006-01-02"),
+			"",
+		); pointsErr == nil {
+			_, _ = s.DB.Exec(
+				`update nutrition_day_progress
+				 set points_awarded = true
+				 where user_id = $1 and day_date = $2`,
 				userID,
+				dayDate,
 			)
-			if err == nil {
-				_, _ = s.DB.Exec(
-					`update nutrition_day_progress
-					 set points_awarded = true
-					 where user_id = $1 and day_date = $2`,
-					userID,
-					dayDate,
-				)
-				awarded = true
-			}
+			awarded = true
 		}
 	}
 
 	s.updateNutritionUserStats(userID)
+	if dayCompleted && !previousDayCompleted {
+		s.insertNutritionDayEvent(userID, dayKey, "day_closed", "", dayDate, map[string]any{
+			"completed_slots": completedCount,
+		})
+	}
+	if !dayCompleted && previousDayCompleted {
+		s.insertNutritionDayEvent(userID, dayKey, "day_reopened", "", dayDate, map[string]any{
+			"completed_slots": completedCount,
+		})
+	}
+	_, _ = s.refreshNutritionAchievements(userID)
 	return awarded, nil
 }
 
@@ -960,7 +1008,13 @@ func (s *Site) loadNutritionMealAssignmentsLegacy(userID string) map[string]map[
 	return assignments
 }
 
-func applyNutritionAssignments(planDays []nutritionPlanDay, assignments map[string]map[string]nutritionAssignmentRecord, now time.Time, rules nutritionDietRules) {
+func applyNutritionAssignments(
+	planDays []nutritionPlanDay,
+	assignments map[string]map[string]nutritionAssignmentRecord,
+	now time.Time,
+	rules nutritionDietRules,
+	reminderSettings nutritionReminderSettings,
+) {
 	for i := range planDays {
 		completedSlots := 0
 		for j := range planDays[i].Slots {
@@ -1006,7 +1060,13 @@ func applyNutritionAssignments(planDays []nutritionPlanDay, assignments map[stri
 				}
 			}
 
-			slot.ReminderStatus, slot.ReminderHint = nutritionMealReminder(planDays[i].DayDate, slot.PlannedTime, slot.Status, now)
+			slot.ReminderStatus, slot.ReminderHint = nutritionMealReminder(
+				planDays[i].DayDate,
+				slot.PlannedTime,
+				slot.Status,
+				now,
+				reminderSettings.MealSLAMinutes,
+			)
 			if slot.Status == "completed" {
 				completedSlots++
 			}
@@ -1301,7 +1361,7 @@ func nutritionBuildWeeklyReview(planDays []nutritionPlanDay) nutritionWeeklyRevi
 		strengthCandidates = append(strengthCandidates, fmt.Sprintf("Соблюдение недельного плана: %d%%.", completionRate))
 	}
 	if onTimeRate >= 60 {
-		strengthCandidates = append(strengthCandidates, fmt.Sprintf("Приемы в рамках мягкого SLA: %d%%.", onTimeRate))
+		strengthCandidates = append(strengthCandidates, fmt.Sprintf("Приемы в рамках мягкого допуска по времени: %d%%.", onTimeRate))
 	}
 	if breakfastDone >= 4 {
 		strengthCandidates = append(strengthCandidates, "Стабильный старт дня: завтраки закрываются регулярно.")
@@ -1318,7 +1378,7 @@ func nutritionBuildWeeklyReview(planDays []nutritionPlanDay) nutritionWeeklyRevi
 		improvements = append(improvements, fmt.Sprintf("Сократить пропуски приемов пищи (сейчас: %d).", skipped))
 	}
 	if onTimeRate < 60 {
-		improvements = append(improvements, "Смещать отметки о приеме ближе к плановому времени для SLA.")
+		improvements = append(improvements, "Смещать отметки о приеме ближе к плановому времени для мягкого допуска.")
 	}
 	if breakfastDone < 4 {
 		improvements = append(improvements, "Укрепить дисциплину по завтракам (целевой минимум: 4 из 5).")
@@ -1671,8 +1731,11 @@ func nutritionIsCompletedOnTime(dayDate time.Time, plannedTime string, completed
 	return !completedAt.After(due.Add(time.Duration(nutritionReminderSLAMinutes) * time.Minute))
 }
 
-func nutritionMealReminder(dayDate time.Time, plannedTime, status string, now time.Time) (string, string) {
+func nutritionMealReminder(dayDate time.Time, plannedTime, status string, now time.Time, slaMinutes int) (string, string) {
 	status = normalizeNutritionMealStatus(status)
+	if slaMinutes < 15 {
+		slaMinutes = nutritionReminderSLAMinutes
+	}
 	if status == "completed" {
 		return "Выполнено", "Прием закрыт"
 	}
@@ -1693,9 +1756,9 @@ func nutritionMealReminder(dayDate time.Time, plannedTime, status string, now ti
 	if now.Before(due) {
 		return "По графику", "До приема по плану"
 	}
-	slaEdge := due.Add(time.Duration(nutritionReminderSLAMinutes) * time.Minute)
+	slaEdge := due.Add(time.Duration(slaMinutes) * time.Minute)
 	if now.Before(slaEdge) {
-		return "Мягкий SLA", "Рекомендуется закрыть прием в течение часа"
+		return "Мягкий допуск", "Рекомендуется закрыть прием в течение часа"
 	}
 	return "Просрочено", "Требуется закрытие или замена"
 }
@@ -1710,7 +1773,7 @@ func nutritionGenericReminderState(now time.Time, hhmm string) (string, string) 
 		return "Напоминание", "Плановая точка воды"
 	}
 	if now.Before(planned.Add(time.Duration(nutritionReminderSLAMinutes) * time.Minute)) {
-		return "Мягкий SLA", "Выполните водный чекпоинт в течение часа"
+		return "Мягкий допуск", "Выполните водный чекпоинт в течение часа"
 	}
 	return "Просрочено", "Контрольный питьевой слот пропущен"
 }
@@ -1836,33 +1899,6 @@ func (s *Site) loadNutritionRewardHistory(userID string) []nutritionRewardHistor
 	return history
 }
 
-func nutritionTrend() []nutritionTrendPoint {
-	labels := []string{"Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"}
-	values := []struct {
-		compliance int
-		hydration  int
-	}{
-		{84, 80},
-		{88, 90},
-		{83, 86},
-		{91, 94},
-		{86, 88},
-		{78, 82},
-		{90, 92},
-	}
-	trend := make([]nutritionTrendPoint, 0, len(values))
-	for i, item := range values {
-		trend = append(trend, nutritionTrendPoint{
-			Label:             labels[i],
-			Compliance:        item.compliance,
-			CompliancePercent: item.compliance,
-			Hydration:         item.hydration,
-			HydrationPercent:  item.hydration,
-		})
-	}
-	return trend
-}
-
 func nutritionMealLibrary() []nutritionMealCard {
 	return []nutritionMealCard{
 		{ID: "meal-breakfast-1", Name: "Каша овсяная молочная", Description: "Классический корпоративный завтрак с медленными углеводами.", Category: "Завтрак", Calories: 320, Protein: 12, Carbs: 46, Fats: 10},
@@ -1889,7 +1925,7 @@ func nutritionMealLibrary() []nutritionMealCard {
 		{ID: "meal-snack-1", Name: "Кефир + цельнозерновые хлебцы", Description: "Базовый перекус между сменами.", Category: "Перекус", Calories: 210, Protein: 10, Carbs: 24, Fats: 8},
 		{ID: "meal-snack-2", Name: "Яблоко + творог", Description: "Простой белковый перекус.", Category: "Перекус", Calories: 230, Protein: 16, Carbs: 25, Fats: 6},
 		{ID: "meal-snack-3", Name: "Йогурт натуральный + орехи", Description: "Перекус для поддержки энергии и концентрации.", Category: "Перекус", Calories: 260, Protein: 11, Carbs: 15, Fats: 17},
-		{ID: "meal-snack-4", Name: "Банан + протеиновый напиток", Description: "Перекус перед тренировкой или активной сменой.", Category: "Перекус", Calories: 280, Protein: 22, Carbs: 31, Fats: 6},
+		{ID: "meal-snack-4", Name: "Банан + протеиновый напиток", Description: "Перекус перед активной сменой для поддержания энергии.", Category: "Перекус", Calories: 280, Protein: 22, Carbs: 31, Fats: 6},
 		{ID: "meal-snack-5", Name: "Груша + йогурт питьевой", Description: "Легкий перекус для удержания темпа между приемами пищи.", Category: "Перекус", Calories: 220, Protein: 9, Carbs: 30, Fats: 6},
 		{ID: "meal-snack-6", Name: "Хумус + овощные палочки", Description: "Перекус с клетчаткой для стабильной концентрации в смене.", Category: "Перекус", Calories: 240, Protein: 10, Carbs: 19, Fats: 13},
 	}

@@ -1138,7 +1138,7 @@ textarea:focus {
   font-weight: 600;
 }
 
-.program-card {
+.reward-card {
   display: grid;
   gap: 12px;
 }
@@ -1172,131 +1172,6 @@ textarea:focus {
   color: var(--primary-700);
   font-weight: 600;
   font-size: 12px;
-}
-
-.exercise-media {
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
-
-.exercise-media img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.module-hub {
-  min-height: 100vh;
-  padding: 48px clamp(24px, 4vw, 56px);
-  display: grid;
-  gap: 30px;
-  align-content: center;
-}
-
-.module-hub-header {
-  display: grid;
-  gap: 10px;
-  max-width: 760px;
-}
-
-.module-hub-header h1 {
-  font-family: var(--font-display);
-  font-size: clamp(32px, 4.5vw, 50px);
-  letter-spacing: -0.8px;
-}
-
-.module-hub-header p {
-  color: var(--muted);
-  font-size: 16px;
-}
-
-.module-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
-}
-
-.module-tile {
-  position: relative;
-  border-radius: 26px;
-  padding: 28px;
-  color: #ffffff;
-  min-height: 300px;
-  display: grid;
-  gap: 14px;
-  align-content: end;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.module-tile::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.08) 10%, rgba(15, 23, 42, 0.68) 78%);
-  pointer-events: none;
-}
-
-.module-tile:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
-}
-
-.module-tile-training {
-  background: linear-gradient(140deg, #2563eb 0%, #1e40af 45%, #0ea5e9 100%);
-}
-
-.module-tile-nutrition {
-  background: linear-gradient(140deg, #1f8f5f 0%, #166534 45%, #54b26f 100%);
-}
-
-.module-tile > * {
-  position: relative;
-  z-index: 1;
-}
-
-.module-tile-label {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.module-tile-title {
-  font-family: var(--font-display);
-  font-size: clamp(30px, 3.4vw, 42px);
-  line-height: 1.1;
-}
-
-.module-tile-text {
-  font-size: 15px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.94);
-}
-
-.module-tile-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  padding: 10px 16px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 700;
 }
 
 .theme-nutrition {
@@ -1335,6 +1210,10 @@ body.theme-nutrition::before {
 
 .nutrition-module .card::before {
   border-top-color: rgba(31, 143, 95, 0.2);
+}
+
+.nutrition-module .card.softer {
+  background: linear-gradient(135deg, rgba(244, 252, 247, 0.92), rgba(237, 248, 241, 0.9));
 }
 
 .nutrition-module .stat-icon {
@@ -1390,7 +1269,32 @@ body.theme-nutrition::before {
 }
 
 .nutrition-module .timeline-item {
-  background: rgba(248, 255, 250, 0.9);
+  background: rgba(248, 255, 250, 0.94);
+  border-left: 3px solid rgba(31, 143, 95, 0.28);
+}
+
+.nutrition-module .table tbody tr:hover {
+  background: rgba(31, 143, 95, 0.06);
+}
+
+.nutrition-module .choice-chip input:checked + span {
+  border-color: rgba(31, 143, 95, 0.55);
+  background: rgba(31, 143, 95, 0.15);
+  color: var(--primary-700);
+}
+
+.nutrition-module .quiz-step-indicator {
+  border-color: rgba(31, 143, 95, 0.25);
+}
+
+.nutrition-module .quiz-step-indicator.active {
+  background: rgba(31, 143, 95, 0.16);
+  color: var(--primary-700);
+}
+
+.nutrition-module .empty-state {
+  background: rgba(244, 252, 247, 0.86);
+  border-style: solid;
 }
 
 .nutrition-trend-bar span {
@@ -1441,13 +1345,6 @@ body.theme-nutrition::before {
     grid-template-columns: 1fr;
   }
 
-  .module-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .module-tile {
-    min-height: 240px;
-  }
 }
 
 @media (max-width: 760px) {
@@ -1502,20 +1399,6 @@ body.theme-nutrition::before {
     background: rgba(37, 99, 235, 0.12);
     color: var(--primary-700);
     font-weight: 600;
-  }
-
-  .module-hub {
-    padding: 28px 18px;
-    align-content: start;
-  }
-
-  .module-tile {
-    padding: 22px;
-    min-height: 220px;
-  }
-
-  .module-tile-title {
-    font-size: 30px;
   }
 
 }

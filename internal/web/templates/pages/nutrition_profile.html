@@ -2,7 +2,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Профиль питания</div>
-    <div class="page-subtitle">Персональные параметры, streak, ограничения и полученные поощрения.</div>
+    <div class="page-subtitle">Персональные параметры, серии, ограничения и полученные поощрения.</div>
   </div>
   <a class="button secondary" href="/nutrition/questionnaire">Опросник питания</a>
 </div>
@@ -22,9 +22,12 @@
       <span class="badge">ID {{ .Profile.EmployeeID }}</span>
       <span class="badge">Баланс: {{ .Points }}</span>
     </div>
+    {{ if .Profile.CorporateEmail }}
+      <div class="muted">Корп. почта: {{ .Profile.CorporateEmail }}</div>
+    {{ end }}
     <div style="margin-top: 10px; display:flex; gap: 8px; flex-wrap: wrap;">
-      <span class="badge">Streak: {{ .CurrentStreak }}</span>
-      <span class="badge">Best: {{ .BestStreak }}</span>
+      <span class="badge">Текущая серия: {{ .CurrentStreak }}</span>
+      <span class="badge">Лучшая серия: {{ .BestStreak }}</span>
     </div>
   </div>
 
@@ -52,6 +55,42 @@
       <div><strong>Статус:</strong> {{ .RestrictionSummary.Status }}</div>
     </div>
   </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+  <div class="card-header">
+    <div class="card-title">Напоминания</div>
+  </div>
+  <form class="form" method="post" action="/nutrition/profile/reminders">
+    <div class="grid cols-3">
+      <div class="form-group">
+        <label>Напомнить до приема (минут)</label>
+        <input type="number" min="0" max="240" name="meal_reminder_lead_minutes" value="{{ .ReminderSettings.MealReminderLeadMinutes }}" />
+      </div>
+      <div class="form-group">
+        <label>Мягкий допуск по приему (минут)</label>
+        <input type="number" min="15" max="360" name="meal_sla_minutes" value="{{ .ReminderSettings.MealSLAMinutes }}" />
+      </div>
+      <div class="form-group">
+        <label>Водные точки</label>
+        <div class="choice-grid">
+          <label class="choice-chip">
+            <input type="checkbox" name="hydration_1030_enabled" {{ if .ReminderSettings.Hydration1030Enabled }}checked{{ end }} />
+            <span>10:30</span>
+          </label>
+          <label class="choice-chip">
+            <input type="checkbox" name="hydration_1500_enabled" {{ if .ReminderSettings.Hydration1500Enabled }}checked{{ end }} />
+            <span>15:00</span>
+          </label>
+          <label class="choice-chip">
+            <input type="checkbox" name="hydration_1800_enabled" {{ if .ReminderSettings.Hydration1800Enabled }}checked{{ end }} />
+            <span>18:00</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <button class="button secondary" type="submit">Сохранить напоминания</button>
+  </form>
 </div>
 
 <div class="card" style="margin-top: 24px;">
