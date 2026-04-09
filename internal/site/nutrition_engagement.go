@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -389,19 +390,20 @@ func (s *Site) refreshNutritionAchievements(userID string) ([]nutritionAchieveme
 		}
 		unlocked := metricValue >= item.TargetValue
 
-		wasUnlocked := false
 		var unlockedAt sql.NullTime
 		_ = s.DB.QueryRow(
-			`select unlocked, unlocked_at
+			`select unlocked_at
 			 from nutrition_user_achievements
 			 where user_id = $1 and achievement_id = $2`,
 			userID,
 			item.ID,
-		).Scan(&wasUnlocked, &unlockedAt)
+		).Scan(&unlockedAt)
 
-		if unlocked && !wasUnlocked && item.PointsReward > 0 {
-			_, pointsErr := s.applyNutritionPointsChange(
+		rewardAlreadyGranted := s.nutritionAchievementRewardAlreadyGranted(userID, item.ID)
+		if unlocked && item.PointsReward > 0 && !rewardAlreadyGranted {
+			awardedPoints, pointsErr := s.applyNutritionPointsChangeWithDailyCap(
 				userID,
+				time.Now(),
 				item.PointsReward,
 				"achievement_unlock",
 				"Открыто достижение: "+item.Title,
@@ -409,8 +411,23 @@ func (s *Site) refreshNutritionAchievements(userID string) ([]nutritionAchieveme
 				item.ID,
 				"",
 			)
-			if pointsErr == nil {
-				s.insertNutritionEvent(userID, "Достижение «"+item.Title+"» открыто: +"+fmt.Sprintf("%d", item.PointsReward)+" баллов.")
+			if pointsErr == nil && awardedPoints > 0 {
+				s.insertNutritionEvent(userID, "Достижение «"+item.Title+"» открыто: +"+fmt.Sprintf("%d", awardedPoints)+" баллов.")
+			} else if pointsErr == nil {
+				log.Printf(
+					"nutrition: achievement points capped by daily limit user=%s achievement=%s (%s)",
+					userID,
+					item.ID,
+					item.Code,
+				)
+			} else {
+				log.Printf(
+					"nutrition: award points for achievement failed user=%s achievement=%s (%s): %v",
+					userID,
+					item.ID,
+					item.Code,
+					pointsErr,
+				)
 			}
 		}
 
@@ -454,6 +471,27 @@ func (s *Site) refreshNutritionAchievements(userID string) ([]nutritionAchieveme
 		})
 	}
 	return views, nil
+}
+
+func (s *Site) nutritionAchievementRewardAlreadyGranted(userID, achievementID string) bool {
+	if strings.TrimSpace(userID) == "" || strings.TrimSpace(achievementID) == "" {
+		return false
+	}
+	var exists bool
+	_ = s.DB.QueryRow(
+		`select exists(
+		   select 1
+		   from nutrition_points_ledger
+		   where user_id = $1
+		     and source_type = 'nutrition_achievement'
+		     and source_id = $2
+		     and reason_code = 'achievement_unlock'
+		     and change_amount > 0
+		 )`,
+		userID,
+		achievementID,
+	).Scan(&exists)
+	return exists
 }
 
 func (s *Site) loadNutritionAchievementCatalog() ([]nutritionAchievementRecord, error) {
@@ -564,6 +602,86 @@ func (s *Site) resolveNutritionAchievementMetric(userID, metricKey string, windo
 		}
 		return count
 	}
+}
+
+func (s *Site) applyNutritionPointsChangeWithDailyCap(
+	userID string,
+	dayDate time.Time,
+	changeAmount int,
+	reasonCode string,
+	reason string,
+	sourceType string,
+	sourceID string,
+	createdBy string,
+) (int, error) {
+	if changeAmount <= 0 {
+		_, err := s.applyNutritionPointsChange(userID, changeAmount, reasonCode, reason, sourceType, sourceID, createdBy)
+		if err != nil {
+			return 0, err
+		}
+		return changeAmount, nil
+	}
+
+	if dayDate.IsZero() {
+		dayDate = time.Now()
+	}
+
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	remaining, err := s.nutritionDailyPointsRemainingTx(tx, userID, dayDate)
+	if err != nil {
+		return 0, err
+	}
+	if remaining <= 0 {
+		return 0, nil
+	}
+
+	award := min(changeAmount, remaining)
+	if award <= 0 {
+		return 0, nil
+	}
+
+	_, err = s.applyNutritionPointsChangeTx(tx, userID, award, reasonCode, reason, sourceType, sourceID, createdBy)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return award, nil
+}
+
+func (s *Site) nutritionDailyPointsRemainingTx(tx *sql.Tx, userID string, dayDate time.Time) (int, error) {
+	if tx == nil {
+		return 0, errors.New("nutrition: nil transaction for daily cap")
+	}
+	dayStart := nutritionDateOnly(dayDate)
+	dayEnd := dayStart.AddDate(0, 0, 1)
+
+	var earned int
+	if err := tx.QueryRow(
+		`select coalesce(sum(change_amount), 0)
+		 from nutrition_points_ledger
+		 where user_id = $1
+		   and change_amount > 0
+		   and created_at >= $2
+		   and created_at < $3`,
+		userID,
+		dayStart,
+		dayEnd,
+	).Scan(&earned); err != nil {
+		return 0, err
+	}
+
+	remaining := nutritionDailyPointsCap - earned
+	if remaining < 0 {
+		remaining = 0
+	}
+	return remaining, nil
 }
 
 func (s *Site) applyNutritionPointsChange(

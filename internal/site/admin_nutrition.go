@@ -71,11 +71,11 @@ func (s *Site) adminNutritionDashboard(w http.ResponseWriter, r *http.Request) {
 	_ = s.DB.QueryRow(`select count(*) from nutrition_user_achievements where unlocked = true`).Scan(&unlockedAchievements)
 	_ = s.DB.QueryRow(`select count(*) from nutrition_points_ledger where created_at >= now() - interval '30 days'`).Scan(&pointsOperations)
 	data["Stats"] = map[string]int{
-		"Questionnaires":      questionnaireCount,
-		"Plans":               plansCount,
-		"IssuedRewards":       issuedRewards,
+		"Questionnaires":       questionnaireCount,
+		"Plans":                plansCount,
+		"IssuedRewards":        issuedRewards,
 		"UnlockedAchievements": unlockedAchievements,
-		"PointsOperations":    pointsOperations,
+		"PointsOperations":     pointsOperations,
 	}
 
 	employees := []adminNutritionEmployeeRow{}
@@ -282,19 +282,22 @@ func (s *Site) adminNutritionEmployeePlanAssign(w http.ResponseWriter, r *http.R
 		http.Redirect(w, r, "/admin/nutrition/employees/"+employeeID+"?error=Выберите%20день%20и%20прием%20пищи", http.StatusSeeOther)
 		return
 	}
+	dayDate, ok := nutritionDayDate(nutritionWeekStart(time.Now()), dayKey)
+	if !ok {
+		http.Redirect(w, r, "/admin/nutrition/employees/"+employeeID+"?error="+url.QueryEscape("Не удалось определить дату выбранного дня"), http.StatusSeeOther)
+		return
+	}
 
-	if err := s.saveNutritionMealAssignment(employeeID, dayKey, slot, meal, nutritionSlotPlannedTime(slot), ""); err != nil {
+	if err := s.saveNutritionMealAssignment(employeeID, dayDate, dayKey, slot, meal, nutritionSlotPlannedTime(slot), ""); err != nil {
 		http.Redirect(w, r, "/admin/nutrition/employees/"+employeeID+"?error=Не%20удалось%20обновить%20план", http.StatusSeeOther)
 		return
 	}
 
 	s.insertNutritionEvent(employeeID, "План питания скорректирован администратором: "+nutritionDayLabel(dayKey)+" / "+nutritionSlotLabel(slot)+".")
-	if dayDate, ok := nutritionDayDate(nutritionWeekStart(time.Now()), dayKey); ok {
-		s.insertNutritionDayEvent(employeeID, dayKey, "admin_meal_assigned", slot, dayDate, map[string]any{
-			"meal_id":   meal.ID,
-			"meal_name": meal.Name,
-		})
-	}
+	s.insertNutritionDayEvent(employeeID, dayKey, "admin_meal_assigned", slot, dayDate, map[string]any{
+		"meal_id":   meal.ID,
+		"meal_name": meal.Name,
+	})
 	http.Redirect(w, r, "/admin/nutrition/employees/"+employeeID+"?success="+url.QueryEscape("План питания обновлен"), http.StatusSeeOther)
 }
 

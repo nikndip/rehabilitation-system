@@ -451,6 +451,43 @@ img {
   background: var(--surface-2);
 }
 
+.plan-day-closed {
+  border-color: rgba(16, 185, 129, 0.24);
+}
+
+.plan-day-closed::before {
+  border-top-color: rgba(16, 185, 129, 0.26);
+}
+
+.plan-day-details {
+  margin-top: 4px;
+}
+
+.plan-day-summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.plan-day-summary::-webkit-details-marker {
+  display: none;
+}
+
+.plan-day-summary::before {
+  content: "+";
+  font-size: 14px;
+  line-height: 1;
+}
+
+.plan-day-details[open] .plan-day-summary::before {
+  content: "-";
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -552,6 +589,18 @@ img {
   transform: translateY(-1px);
 }
 
+.button.success {
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.button.warning {
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
 .button.secondary {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -568,6 +617,17 @@ img {
   background: rgba(239, 68, 68, 0.12);
   color: var(--danger);
   border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.button:disabled:hover {
+  transform: none;
 }
 
 .segmented {
@@ -1271,6 +1331,11 @@ body.theme-nutrition::before {
 .nutrition-module .timeline-item {
   background: rgba(248, 255, 250, 0.94);
   border-left: 3px solid rgba(31, 143, 95, 0.28);
+}
+
+.nutrition-module .plan-checkpoint-hydration {
+  background: rgba(239, 252, 248, 0.92);
+  border-left: 3px solid rgba(14, 165, 233, 0.34);
 }
 
 .nutrition-module .table tbody tr:hover {

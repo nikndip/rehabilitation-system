@@ -42,7 +42,8 @@
 
 <div class="grid" style="gap: 16px;">
   {{ range .PlanDays }}
-    <div class="card">
+    {{ $day := . }}
+    <div class="card {{ if eq .Status "completed" }}plan-day-closed{{ end }}">
       <div class="card-header">
         <div>
           <div class="card-title">{{ .DayLabel }} · {{ .DateLabel }}</div>
@@ -55,101 +56,118 @@
           {{ else if eq .Status "in_progress" }}
             <span class="badge warning">В процессе</span>
           {{ else if eq .Status "skipped" }}
-            <span class="badge error">Есть пропуски</span>
+            <span class="badge danger">Есть пропуски</span>
           {{ else }}
             <span class="badge">Запланировано</span>
           {{ end }}
         </div>
       </div>
 
+      {{ if eq .Status "completed" }}
+        <details class="plan-day-details">
+          <summary class="plan-day-summary">День закрыт. Показать детали</summary>
+          <div class="grid" style="gap: 12px; margin-top: 12px;">
+      {{ else }}
       <div class="grid" style="gap: 12px;">
-        {{ $day := . }}
-        {{ range .Slots }}
-          <div class="card softer">
-            <div style="display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start;">
-              <div style="min-width: 260px; flex: 1;">
+      {{ end }}
+        {{ range .Timeline }}
+          {{ if eq .Kind "meal" }}
+            <div class="card softer plan-checkpoint">
+              <div style="display:flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
                 <div style="display:flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                  <strong>{{ .SlotLabel }}</strong>
-                  <span class="badge">{{ .PlannedTime }}</span>
-                  {{ if eq .Status "completed" }}
+                  <span class="badge">Еда</span>
+                  <strong>{{ .Meal.SlotLabel }}</strong>
+                  <span class="badge">{{ .Meal.PlannedTime }}</span>
+                  {{ if eq .Meal.Status "completed" }}
                     <span class="badge success">Выполнено</span>
-                  {{ else if eq .Status "skipped" }}
-                    <span class="badge error">Пропущено</span>
+                  {{ else if eq .Meal.Status "skipped" }}
+                    <span class="badge danger">Пропущено</span>
                   {{ else }}
                     <span class="badge">Запланировано</span>
                   {{ end }}
                 </div>
-                <div style="margin-top: 6px;">{{ .MealName }}</div>
-                <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
-                  <span class="badge">{{ .Calories }} ккал</span>
-                  <span class="badge">Б {{ .Protein }} г</span>
-                  <span class="badge">У {{ .Carbs }} г</span>
-                  <span class="badge">Ж {{ .Fats }} г</span>
-                  <span class="badge">{{ .ReminderStatus }}</span>
-                </div>
-                <div class="muted" style="margin-top: 8px;">{{ .ReminderHint }}</div>
-                {{ if .CompletedAt }}
-                  <div class="muted" style="margin-top: 4px;">
-                    Отмечено в {{ .CompletedAt }}
-                    {{ if .CompletedOnTime }}
-                      (в рамках мягкого допуска)
-                    {{ else }}
-                      (после мягкого допуска)
-                    {{ end }}
-                  </div>
-                {{ end }}
-                {{ if .SuggestedMeal }}
-                  <div class="muted" style="margin-top: 6px;">
-                    Рекомендация: заменить на «{{ .SuggestedMeal.Name }}». {{ .SuggestedReason }}
-                  </div>
-                {{ end }}
               </div>
+              <div style="margin-top: 6px;">{{ .Meal.MealName }}</div>
+              <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                <span class="badge">{{ .Meal.Calories }} ккал</span>
+                <span class="badge">Б {{ .Meal.Protein }} г</span>
+                <span class="badge">У {{ .Meal.Carbs }} г</span>
+                <span class="badge">Ж {{ .Meal.Fats }} г</span>
+                <span class="badge">{{ .Meal.ReminderStatus }}</span>
+              </div>
+              <div class="muted" style="margin-top: 8px;">{{ .Meal.ReminderHint }}</div>
+              {{ if .Meal.CompletedAt }}
+                <div class="muted" style="margin-top: 4px;">
+                  Отмечено в {{ .Meal.CompletedAt }}
+                  {{ if .Meal.CompletedOnTime }}
+                    (в рамках мягкого допуска)
+                  {{ else }}
+                    (после мягкого допуска)
+                  {{ end }}
+                </div>
+              {{ end }}
+              {{ if .Meal.SuggestedMeal }}
+                <div class="muted" style="margin-top: 6px;">
+                  Рекомендация: заменить на «{{ .Meal.SuggestedMeal.Name }}». {{ .Meal.SuggestedReason }}
+                </div>
+              {{ end }}
 
-              <div style="display:flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-                <a class="button secondary" href="/nutrition/meals?day={{ $day.DayKey }}&slot={{ .SlotKey }}&category={{ urlquery .SlotLabel }}&return_to={{ urlquery "/nutrition/plan" }}">Выбрать другое</a>
-                <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .SlotKey }}/complete">
-                  <button class="button primary" type="submit">Поел</button>
+              <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                <a class="button secondary" href="/nutrition/meals?day={{ $day.DayKey }}&slot={{ .Meal.SlotKey }}&category={{ urlquery .Meal.SlotLabel }}&return_to={{ urlquery "/nutrition/plan" }}">Выбрать другое</a>
+                <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .Meal.SlotKey }}/complete">
+                  <button class="button {{ if eq .Meal.Status "completed" }}success{{ else }}primary{{ end }}" type="submit" {{ if eq .Meal.Status "completed" }}disabled{{ end }}>
+                    {{ if eq .Meal.Status "completed" }}Выполнено{{ else }}Поел{{ end }}
+                  </button>
                 </form>
-                <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .SlotKey }}/skip">
-                  <button class="button secondary" type="submit">Пропустил</button>
+                <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .Meal.SlotKey }}/skip">
+                  <button class="button {{ if eq .Meal.Status "skipped" }}danger{{ else }}secondary{{ end }}" type="submit">
+                    {{ if eq .Meal.Status "skipped" }}Пропущено{{ else }}Пропустил{{ end }}
+                  </button>
                 </form>
-                <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .SlotKey }}/smart-replace">
-                  <button class="button secondary" type="submit">Умная замена</button>
+                <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .Meal.SlotKey }}/smart-replace">
+                  <button class="button secondary" type="submit" {{ if eq .Meal.Status "completed" }}disabled{{ end }}>Умная замена</button>
                 </form>
               </div>
             </div>
-          </div>
-        {{ end }}
-      </div>
-
-      <div class="card softer" style="margin-top: 12px;">
-        <div class="card-header">
-          <div class="card-title">Водные чекпоинты</div>
-          <span class="badge">Контроль по времени</span>
-        </div>
-        <div class="grid" style="gap: 10px;">
-          {{ range .HydrationReminders }}
-            <div class="timeline-item">
+          {{ else }}
+            <div class="card softer plan-checkpoint plan-checkpoint-hydration">
               <div style="display:flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-                <strong>Вода · {{ .Time }}</strong>
-                <span class="badge">{{ .Status }}</span>
+                <div style="display:flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <span class="badge">Вода</span>
+                  <strong>Прием воды</strong>
+                  <span class="badge">{{ .Hydration.Time }}</span>
+                  {{ if eq .Hydration.StatusCode "completed" }}
+                    <span class="badge success">Выполнено</span>
+                  {{ else if eq .Hydration.StatusCode "cleared" }}
+                    <span class="badge warning">Очищено</span>
+                  {{ else }}
+                    <span class="badge">{{ .Hydration.Status }}</span>
+                  {{ end }}
+                </div>
               </div>
-              <div class="muted" style="margin-top: 6px;">{{ .Hint }}</div>
-              {{ if .CompletedAt }}
-                <div class="muted" style="margin-top: 4px;">Отмечено в {{ .CompletedAt }}</div>
+              <div class="muted" style="margin-top: 6px;">{{ .Hydration.Hint }}</div>
+              {{ if .Hydration.CompletedAt }}
+                <div class="muted" style="margin-top: 4px;">Отмечено в {{ .Hydration.CompletedAt }}</div>
               {{ end }}
               <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
-                <form method="post" action="/nutrition/plan/hydration/{{ $day.DayKey }}/{{ .ReminderKey }}/complete">
-                  <button class="button primary" type="submit">Выполнено</button>
+                <form method="post" action="/nutrition/plan/hydration/{{ $day.DayKey }}/{{ .Hydration.ReminderKey }}/complete">
+                  <button class="button {{ if eq .Hydration.StatusCode "completed" }}success{{ else }}primary{{ end }}" type="submit" {{ if eq .Hydration.StatusCode "completed" }}disabled{{ end }}>
+                    {{ if eq .Hydration.StatusCode "completed" }}Выполнено{{ else }}Выполнить{{ end }}
+                  </button>
                 </form>
-                <form method="post" action="/nutrition/plan/hydration/{{ $day.DayKey }}/{{ .ReminderKey }}/clear">
-                  <button class="button secondary" type="submit">Очистить</button>
+                <form method="post" action="/nutrition/plan/hydration/{{ $day.DayKey }}/{{ .Hydration.ReminderKey }}/clear">
+                  <button class="button {{ if eq .Hydration.StatusCode "cleared" }}warning{{ else }}secondary{{ end }}" type="submit" {{ if eq .Hydration.StatusCode "cleared" }}disabled{{ end }}>
+                    {{ if eq .Hydration.StatusCode "cleared" }}Очищено{{ else }}Очистить{{ end }}
+                  </button>
                 </form>
               </div>
             </div>
           {{ end }}
-        </div>
+        {{ end }}
       </div>
+      {{ if eq .Status "completed" }}
+        </details>
+      {{ end }}
     </div>
   {{ end }}
 </div>

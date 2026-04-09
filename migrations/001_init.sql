@@ -71,6 +71,7 @@ create index if not exists idx_users_corporate_email_lower
 create table if not exists nutrition_plan_meals (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid not null references users(id) on delete cascade,
+  day_date date not null,
   day_key text not null,
   meal_slot text not null,
   meal_id text not null,
@@ -86,11 +87,11 @@ create table if not exists nutrition_plan_meals (
   smart_swap_from_meal_id text,
   completed_at timestamptz,
   skipped_at timestamptz,
-  unique (user_id, day_key, meal_slot)
+  unique (user_id, day_date, meal_slot)
 );
 
 create index if not exists idx_nutrition_plan_meals_user_day
-  on nutrition_plan_meals(user_id, day_key);
+  on nutrition_plan_meals(user_id, day_date);
 
 create table if not exists nutrition_day_progress (
   user_id uuid not null references users(id) on delete cascade,

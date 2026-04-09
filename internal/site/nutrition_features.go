@@ -3,6 +3,7 @@ package site
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -62,6 +63,7 @@ type nutritionHydrationReminderView struct {
 	ReminderKey string
 	Time        string
 	Status      string
+	StatusCode  string
 	Hint        string
 	CompletedAt string
 }
@@ -600,14 +602,14 @@ func nutritionHydrationReminderState(dayDate time.Time, plannedTime, status stri
 		slaMinutes = nutritionReminderSLAMinutes
 	}
 	if status == "completed" {
-		return "Выполнено", "Водный чекпоинт закрыт"
+		return "Выполнено", "Прием воды закрыт"
 	}
 	if status == "cleared" {
 		return "Очищено", "Напоминание очищено вручную"
 	}
 	today := nutritionDateOnly(now)
 	if nutritionDateOnly(dayDate).Before(today) {
-		return "Просрочено", "Водный чекпоинт пропущен"
+		return "Просрочено", "Прием воды пропущен"
 	}
 	if nutritionDateOnly(dayDate).After(today) {
 		return "Запланировано", "Напоминание по расписанию"
@@ -620,14 +622,14 @@ func nutritionHydrationReminderState(dayDate time.Time, plannedTime, status stri
 		return "Напоминание", "Плановая точка воды"
 	}
 	if now.Before(due.Add(time.Duration(slaMinutes) * time.Minute)) {
-		return "Мягкий допуск", "Рекомендуется закрыть чекпоинт в течение часа"
+		return "Мягкий допуск", "Рекомендуется закрыть прием воды в течение часа"
 	}
 	return "Просрочено", "Требуется отметка выполнения или очистка"
 }
 
 func (s *Site) loadNutritionHydrationLogs(userID string, weekStart time.Time) map[string]map[string]nutritionHydrationLogRecord {
 	logs := map[string]map[string]nutritionHydrationLogRecord{}
-	weekEnd := weekStart.AddDate(0, 0, 5)
+	weekEnd := weekStart.AddDate(0, 0, len(nutritionDayOptions()))
 	rows, err := s.DB.Query(
 		`select day_key, reminder_key, coalesce(status, 'planned'), completed_at, updated_at
 		 from nutrition_hydration_logs
@@ -694,6 +696,7 @@ func applyNutritionHydrationReminders(
 				ReminderKey: option.Key,
 				Time:        option.Time,
 				Status:      state,
+				StatusCode:  record.Status,
 				Hint:        hint,
 			}
 			if !record.CompletedAt.IsZero() {
@@ -709,7 +712,7 @@ func (s *Site) nutritionHydrationComplete(w http.ResponseWriter, r *http.Request
 	dayKey := normalizeNutritionDayKey(chi.URLParam(r, "day"))
 	reminderKey := normalizeNutritionHydrationReminderKey(chi.URLParam(r, "key"))
 	if dayKey == "" || reminderKey == "" {
-		http.Redirect(w, r, "/nutrition/plan?error=Некорректный%20водный%20чекпоинт", http.StatusSeeOther)
+		http.Redirect(w, r, "/nutrition/plan?error=Некорректный%20прием%20воды", http.StatusSeeOther)
 		return
 	}
 	dayDate, ok := nutritionDayDate(nutritionWeekStart(time.Now()), dayKey)
@@ -732,17 +735,20 @@ func (s *Site) nutritionHydrationComplete(w http.ResponseWriter, r *http.Request
 		reminderKey,
 	)
 	if err != nil {
-		http.Redirect(w, r, "/nutrition/plan?error=Не%20удалось%20обновить%20водный%20чекпоинт", http.StatusSeeOther)
+		http.Redirect(w, r, "/nutrition/plan?error=Не%20удалось%20обновить%20прием%20воды", http.StatusSeeOther)
 		return
 	}
 
 	timeLabel := nutritionHydrationReminderTime(reminderKey)
-	s.insertNutritionEvent(user.ID, "Водный чекпоинт "+timeLabel+" выполнен.")
+	s.insertNutritionEvent(user.ID, "Прием воды "+timeLabel+" выполнен.")
 	s.insertNutritionDayEvent(user.ID, dayKey, "hydration_completed", reminderKey, dayDate, map[string]any{
 		"reminder_time": timeLabel,
 	})
+	if _, progressErr := s.refreshNutritionDayProgress(user.ID, dayKey, dayDate); progressErr != nil {
+		log.Printf("nutrition: refresh day progress after hydration complete failed user=%s day=%s: %v", user.ID, dayDate.Format("2006-01-02"), progressErr)
+	}
 	_, _ = s.refreshNutritionAchievements(user.ID)
-	http.Redirect(w, r, "/nutrition/plan?success="+url.QueryEscape("Водный чекпоинт "+timeLabel+" отмечен как выполненный"), http.StatusSeeOther)
+	http.Redirect(w, r, "/nutrition/plan?success="+url.QueryEscape("Прием воды "+timeLabel+" отмечен как выполненный"), http.StatusSeeOther)
 }
 
 func (s *Site) nutritionHydrationClear(w http.ResponseWriter, r *http.Request) {
@@ -750,7 +756,7 @@ func (s *Site) nutritionHydrationClear(w http.ResponseWriter, r *http.Request) {
 	dayKey := normalizeNutritionDayKey(chi.URLParam(r, "day"))
 	reminderKey := normalizeNutritionHydrationReminderKey(chi.URLParam(r, "key"))
 	if dayKey == "" || reminderKey == "" {
-		http.Redirect(w, r, "/nutrition/plan?error=Некорректный%20водный%20чекпоинт", http.StatusSeeOther)
+		http.Redirect(w, r, "/nutrition/plan?error=Некорректный%20прием%20воды", http.StatusSeeOther)
 		return
 	}
 	dayDate, ok := nutritionDayDate(nutritionWeekStart(time.Now()), dayKey)
@@ -773,17 +779,20 @@ func (s *Site) nutritionHydrationClear(w http.ResponseWriter, r *http.Request) {
 		reminderKey,
 	)
 	if err != nil {
-		http.Redirect(w, r, "/nutrition/plan?error=Не%20удалось%20очистить%20чекпоинт", http.StatusSeeOther)
+		http.Redirect(w, r, "/nutrition/plan?error=Не%20удалось%20очистить%20прием%20воды", http.StatusSeeOther)
 		return
 	}
 
 	timeLabel := nutritionHydrationReminderTime(reminderKey)
-	s.insertNutritionEvent(user.ID, "Водный чекпоинт "+timeLabel+" очищен.")
+	s.insertNutritionEvent(user.ID, "Прием воды "+timeLabel+" очищен.")
 	s.insertNutritionDayEvent(user.ID, dayKey, "hydration_cleared", reminderKey, dayDate, map[string]any{
 		"reminder_time": timeLabel,
 	})
+	if _, progressErr := s.refreshNutritionDayProgress(user.ID, dayKey, dayDate); progressErr != nil {
+		log.Printf("nutrition: refresh day progress after hydration clear failed user=%s day=%s: %v", user.ID, dayDate.Format("2006-01-02"), progressErr)
+	}
 	_, _ = s.refreshNutritionAchievements(user.ID)
-	http.Redirect(w, r, "/nutrition/plan?success="+url.QueryEscape("Водный чекпоинт "+timeLabel+" очищен"), http.StatusSeeOther)
+	http.Redirect(w, r, "/nutrition/plan?success="+url.QueryEscape("Прием воды "+timeLabel+" очищен"), http.StatusSeeOther)
 }
 
 func (s *Site) loadNutritionNotificationEntries(userID string, clearedAt, now time.Time) []notificationHistoryEntry {
@@ -818,57 +827,53 @@ func (s *Site) loadNutritionNotificationEntries(userID string, clearedAt, now ti
 		}
 	}
 
-	dayKey := nutritionDayKeyFromWeekday(now.Weekday())
-	if dayKey != "" {
-		rows, err = s.DB.Query(
-			`select meal_name, meal_slot, coalesce(status, 'planned'), coalesce(planned_time, '')
-			 from nutrition_plan_meals
-			 where user_id = $1 and day_key = $2`,
-			userID,
-			dayKey,
-		)
-		if err == nil {
-			defer rows.Close()
-			today := nutritionDateOnly(now)
-			for rows.Next() {
-				var mealName string
-				var mealSlot string
-				var status string
-				var plannedTime string
-				if err := rows.Scan(&mealName, &mealSlot, &status, &plannedTime); err != nil {
-					continue
+	today := nutritionDateOnly(now)
+	rows, err = s.DB.Query(
+		`select meal_name, meal_slot, coalesce(status, 'planned'), coalesce(planned_time, '')
+		 from nutrition_plan_meals
+		 where user_id = $1 and day_date = $2`,
+		userID,
+		today,
+	)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var mealName string
+			var mealSlot string
+			var status string
+			var plannedTime string
+			if err := rows.Scan(&mealName, &mealSlot, &status, &plannedTime); err != nil {
+				continue
+			}
+			if normalizeNutritionMealStatus(status) != "planned" {
+				continue
+			}
+			if strings.TrimSpace(plannedTime) == "" {
+				plannedTime = nutritionSlotPlannedTime(mealSlot)
+			}
+			due, ok := nutritionParseSlotDateTime(today, plannedTime)
+			if !ok || !due.After(clearedAt) {
+				continue
+			}
+			slotLabel := nutritionSlotLabel(mealSlot)
+			if now.After(due.Add(mealSLA)) {
+				reason := "Просрочен прием пищи: " + slotLabel
+				if strings.TrimSpace(mealName) != "" {
+					reason += " («" + mealName + "»)"
 				}
-				if normalizeNutritionMealStatus(status) != "planned" {
-					continue
+				entries = append(entries, notificationHistoryEntry{When: due, Reason: reason})
+				continue
+			}
+			if now.After(due.Add(-mealLead)) {
+				reason := "Напоминание: прием пищи " + slotLabel + " в " + plannedTime
+				if strings.TrimSpace(mealName) != "" {
+					reason += " («" + mealName + "»)"
 				}
-				if strings.TrimSpace(plannedTime) == "" {
-					plannedTime = nutritionSlotPlannedTime(mealSlot)
-				}
-				due, ok := nutritionParseSlotDateTime(today, plannedTime)
-				if !ok || !due.After(clearedAt) {
-					continue
-				}
-				slotLabel := nutritionSlotLabel(mealSlot)
-				if now.After(due.Add(mealSLA)) {
-					reason := "Просрочен прием пищи: " + slotLabel
-					if strings.TrimSpace(mealName) != "" {
-						reason += " («" + mealName + "»)"
-					}
-					entries = append(entries, notificationHistoryEntry{When: due, Reason: reason})
-					continue
-				}
-				if now.After(due.Add(-mealLead)) {
-					reason := "Напоминание: прием пищи " + slotLabel + " в " + plannedTime
-					if strings.TrimSpace(mealName) != "" {
-						reason += " («" + mealName + "»)"
-					}
-					entries = append(entries, notificationHistoryEntry{When: due, Reason: reason})
-				}
+				entries = append(entries, notificationHistoryEntry{When: due, Reason: reason})
 			}
 		}
 	}
 
-	today := nutritionDateOnly(now)
 	logs := map[string]nutritionHydrationLogRecord{}
 	rows, err = s.DB.Query(
 		`select reminder_key, coalesce(status, 'planned'), completed_at, updated_at
@@ -909,11 +914,11 @@ func (s *Site) loadNutritionNotificationEntries(userID string, clearedAt, now ti
 			continue
 		}
 		if now.After(due.Add(mealSLA)) {
-			entries = append(entries, notificationHistoryEntry{When: due, Reason: "Просрочен водный чекпоинт: " + option.Time})
+			entries = append(entries, notificationHistoryEntry{When: due, Reason: "Просрочен прием воды: " + option.Time})
 			continue
 		}
 		if now.After(due.Add(-mealLead)) {
-			entries = append(entries, notificationHistoryEntry{When: due, Reason: "Напоминание по воде: чекпоинт " + option.Time})
+			entries = append(entries, notificationHistoryEntry{When: due, Reason: "Напоминание по воде: прием воды " + option.Time})
 		}
 	}
 
