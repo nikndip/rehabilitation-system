@@ -17,6 +17,11 @@
   --shadow-lg: 0 20px 45px rgba(15, 23, 42, 0.12);
   --shadow-md: 0 12px 25px rgba(15, 23, 42, 0.1);
   --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --auth-panel-from: rgba(37, 99, 235, 0.12);
+  --auth-panel-to: rgba(14, 165, 233, 0.18);
+  --auth-badge-bg: rgba(37, 99, 235, 0.15);
+  --auth-panel-content-bg: rgba(255, 255, 255, 0.78);
+  --auth-demo-bg: #ffffff;
   --radius-lg: 18px;
   --radius-md: 12px;
   --radius-sm: 8px;
@@ -943,7 +948,7 @@ textarea:focus {
 }
 
 .auth-panel {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(14, 165, 233, 0.18));
+  background: linear-gradient(135deg, var(--auth-panel-from), var(--auth-panel-to));
   border: 1px solid var(--border);
   border-radius: 28px;
   padding: 28px;
@@ -952,7 +957,7 @@ textarea:focus {
 }
 
 .auth-panel-content {
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--auth-panel-content-bg);
   border-radius: 22px;
   padding: 28px;
   display: grid;
@@ -965,7 +970,7 @@ textarea:focus {
   gap: 8px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.15);
+  background: var(--auth-badge-bg);
   color: var(--primary-700);
   font-size: 12px;
   font-weight: 600;
@@ -983,7 +988,7 @@ textarea:focus {
 }
 
 .panel-demo {
-  background: var(--surface);
+  background: var(--auth-demo-bg);
   border: 1px dashed var(--border);
   border-radius: 16px;
   padding: 14px 16px;
@@ -1242,6 +1247,11 @@ textarea:focus {
   --bg-accent: #e8f8ef;
   --border: #d3eadb;
   --success: #1d9f63;
+  --auth-panel-from: rgba(31, 143, 95, 0.14);
+  --auth-panel-to: rgba(124, 207, 120, 0.2);
+  --auth-badge-bg: rgba(31, 143, 95, 0.16);
+  --auth-panel-content-bg: rgba(255, 255, 255, 0.84);
+  --auth-demo-bg: rgba(249, 254, 251, 0.95);
   background: radial-gradient(circle at top, #f9fefb 0%, #edf8f1 46%, #d9ece0 100%);
 }
 

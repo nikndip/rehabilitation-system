@@ -235,6 +235,7 @@ func (s *Site) requireRoles(roles ...string) func(http.Handler) http.Handler {
 
 func (s *Site) loginPage(w http.ResponseWriter, r *http.Request) {
 	data := s.baseData(r, "Вход", "")
+	data["Module"] = "nutrition"
 	data["HideNav"] = true
 	data["Error"] = r.URL.Query().Get("error")
 	data["AllowRegister"] = s.Config.AllowSelfRegister
@@ -286,6 +287,7 @@ func (s *Site) registerPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := s.baseData(r, "Регистрация", "")
+	data["Module"] = "nutrition"
 	data["HideNav"] = true
 	data["Error"] = r.URL.Query().Get("error")
 	s.render(w, "register", data)
