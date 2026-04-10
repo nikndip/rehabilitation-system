@@ -1,30 +1,166 @@
-# Система реабилитации сотрудников
+# Корпоративная система реабилитации сотрудников
 
-Полностью Go-приложение: сервер, шаблоны и стили. Интерфейс рендерится на сервере, данные хранятся в PostgreSQL.
+SSR-платформа для сопровождения сотрудников в корпоративном контуре: от опросника и персонального плана питания до достижений, поощрений, поддержки и управленческой аналитики.
 
-## Requirements
-- Go 1.22+
-- PostgreSQL 14+
+Система рассчитана на рабочую эксплуатацию:
+- роли и доступы разделены по бизнес-процессу (`employee`, `manager`, `admin`);
+- интерфейс и бизнес-сценарии локализованы на русском языке;
+- данные, настройки и история действий хранятся централизованно в PostgreSQL.
 
-## Quick start
-1) Запустите PostgreSQL (при желании через Docker):
-   `docker-compose up -d`
+## Что умеет система
 
-2) Установите переменные окружения (см. `.env.example`):
-   `export DATABASE_URL=postgres://rehab:rehab@localhost:5432/rehab_app?sslmode=disable`
+### Для сотрудника
+- личный кабинет питания: дашборд, профиль, опросник;
+- недельный план питания с отметками приемов пищи и воды;
+- напоминания по питанию и гидратации;
+- достижения, баллы и рейтинг;
+- каталог поощрений с лимитами и отправкой заявок на согласование;
+- история заявок на поощрения и их статусы;
+- поддержка с обращениями, перепиской и статусами (`open`, `answered`, `closed`);
+- инструкция пользователя в профиле.
 
-3) Запустите сервер:
-   `go run .`
+### Для руководителя
+- отдельный контур `manager` (не сведен к `employee`);
+- панель отдела: сотрудники, достижения, заявки на поощрения, обращения поддержки;
+- согласование заявок сотрудников на поощрения (`approve` / `reject`);
+- начисление дополнительных баллов сотрудникам только своего отдела;
+- просмотр и ответы на обращения поддержки сотрудников своего отдела;
+- SLA-уведомления о просроченных заявках и обращениях;
+- инструкция руководителя в профиле.
 
-Приложение будет доступно по адресу `http://localhost:8080`.
+### Для администратора
+- контур `admin` с управлением модулем питания;
+- просмотр сотрудников, анкет и индивидуальных карточек;
+- управление каталогом достижений;
+- просмотр журнала баллов (ручная корректировка отключена);
+- работа с обращениями поддержки и статусами;
+- централизованный аудит действий (`/admin/nutrition/audit`);
+- SLA-контроль просроченных заявок и обращений;
+- инструкции по ролям в профиле (пользователь / администратор / руководитель).
 
-## Seed accounts (если `SEED_DATA=true`)
-- Employee: `10001` / `password`
-- Employee: `20001` / `password`
-- Admin: `90000` / `password`
+## Технологический стек
+- Go 1.22
+- `chi` router
+- PostgreSQL 14+ (в `docker-compose.yml` используется PostgreSQL 16)
+- HTML Templates (SSR)
+- CSS (единые стили проекта)
 
-## Основные страницы
-- `/login`, `/register`
-- `/` (дашборд питания), `/nutrition/plan`, `/nutrition/meals`, `/nutrition/profile`
-- `/nutrition/leaderboard`, `/nutrition/rewards`, `/nutrition/achievements`
-- `/admin/nutrition`, `/admin/nutrition/achievements`, `/admin/nutrition/points`
+## Быстрый старт
+
+1. Поднимите PostgreSQL:
+```bash
+docker compose up -d
+```
+
+2. Подготовьте переменные окружения:
+```bash
+cp .env.example .env
+```
+
+3. При необходимости включите тестовые данные в `.env`:
+```env
+SEED_DATA=true
+```
+
+4. Запустите приложение:
+```bash
+go run .
+```
+
+Система будет доступна на `http://localhost:8080`.
+
+## Тестовые учетные записи (при `SEED_DATA=true`)
+- Сотрудник: `10001` / `password` (Иван Петров)
+- Сотрудник: `20001` / `password` (Мария Соколова)
+- Руководитель: `30001` / `password` (Алексей Орлов)
+- Администратор: `90000` / `password` (Администратор)
+
+## Переменные окружения
+
+| Переменная | Значение по умолчанию | Назначение |
+|---|---|---|
+| `APP_ADDR` | `:8080` | Адрес HTTP-сервера |
+| `DATABASE_URL` | `postgres://rehab:rehab@localhost:5432/rehab_app?sslmode=disable` | Подключение к БД |
+| `RUN_MIGRATIONS` | `true` | Автозапуск миграций при старте |
+| `SEED_DATA` | `false` | Заполнение тестовыми данными |
+| `ALLOW_SELF_REGISTER` | `false` | Разрешить саморегистрацию сотрудников |
+| `COOKIE_NAME` | `rehab_session` | Имя cookie сессии |
+| `COOKIE_SECURE` | `false` | Передавать cookie только по HTTPS |
+| `SESSION_TTL` | `168h` | Время жизни сессии |
+| `APP_ENV` | `development` | Окружение приложения |
+
+## Миграции и данные
+- миграции применяются автоматически при старте, если `RUN_MIGRATIONS=true`;
+- файлы миграций применяются в лексикографическом порядке из каталога `migrations/`;
+- актуальный набор миграций:
+  - `001_init.sql`
+  - `002_users_optional_columns.sql`
+  - `003_nutrition_achievements_seed.sql`
+  - `004_nutrition_points_compat.sql`
+  - `005_nutrition_plan_day_date.sql`
+  - `006_nutrition_manager_support_rewards.sql`
+  - `007_support_legacy_compat.sql`
+  - `008_nutrition_sla_audit.sql`
+- тестовые данные загружаются из `internal/db/seed.go`.
+
+## Ключевые маршруты
+
+### Общие
+- `/login`, `/register`, `/logout`
+- `/` (дашборд питания)
+
+### Сотрудник (`employee`)
+- `/nutrition/plan`
+- `/nutrition/meals`
+- `/nutrition/questionnaire`
+- `/nutrition/profile`
+- `/nutrition/leaderboard`
+- `/nutrition/rewards`
+- `/nutrition/achievements`
+- `/nutrition/support`
+- `/nutrition/instructions/employee`
+
+### Руководитель (`manager`)
+- `/manager/nutrition`
+- `/manager/nutrition/points`
+- `/manager/nutrition/support`
+- `/nutrition/instructions/manager`
+
+### Администратор (`admin`)
+- `/admin/nutrition`
+- `/admin/nutrition/achievements`
+- `/admin/nutrition/points`
+- `/admin/nutrition/support`
+- `/admin/nutrition/audit`
+- `/nutrition/instructions/admin`
+
+## Структура проекта
+
+```text
+main.go
+internal/
+  config/          # загрузка конфигурации
+  db/              # подключение, миграции, seed
+  middleware/      # сессии, логирование, recovery, контекст пользователя
+  models/          # доменные модели
+  site/            # HTTP-обработчики и бизнес-логика
+  web/
+    templates/     # SSR-шаблоны страниц и partials
+    static/        # CSS и статические ассеты
+migrations/        # SQL-миграции схемы и совместимости
+docker-compose.yml # локальный PostgreSQL
+```
+
+## Команда разработки
+
+Проверка сборки и пакетов:
+```bash
+go test ./...
+```
+
+Для production-контура рекомендуется:
+- `COOKIE_SECURE=true`;
+- отдельная БД и отдельные учетные данные;
+- `ALLOW_SELF_REGISTER=false`;
+- регулярные бэкапы PostgreSQL;
+- отдельный мониторинг SLA по заявкам и обращениям.

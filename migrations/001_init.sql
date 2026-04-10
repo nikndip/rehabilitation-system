@@ -335,10 +335,5 @@ do update set title = excluded.title,
               sort_order = excluded.sort_order,
               updated_at = now();
 
-update users
-set role = 'employee',
-    updated_at = now()
-where role = 'manager';
-
 -- +migrate Down
 -- One-file migration mode: rollback is intentionally not supported.

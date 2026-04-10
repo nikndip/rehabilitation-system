@@ -1,40 +1,58 @@
 {{ define "content" }}
 <div class="page-header">
   <div>
-    <div class="page-title">Админка питания · Баллы</div>
-    <div class="page-subtitle">Просмотр баланса баллов и аудит операций по сотрудникам.</div>
+    <div class="page-title">Руководитель · Баллы отдела</div>
+    <div class="page-subtitle">Начисление дополнительных баллов сотрудникам своего отдела: {{ .Department }}.</div>
   </div>
-  <div style="display:flex; gap: 10px; flex-wrap: wrap;">
-    <a class="button secondary" href="/admin/nutrition/achievements">Достижения</a>
-    <a class="button secondary" href="/admin/nutrition/support">Поддержка</a>
-    <a class="button secondary" href="/admin/nutrition/audit">Аудит</a>
-    <a class="button secondary" href="/admin/nutrition">К панели питания</a>
-  </div>
+  <a class="button secondary" href="/manager/nutrition">К панели руководителя</a>
 </div>
 
-{{ if .Success }}
-  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
-{{ end }}
 {{ if .Error }}
   <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
 {{ end }}
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
 
-<div class="notice" style="margin-bottom: 16px;">
-  Ручная корректировка баллов в админском контуре отключена. Дополнительные баллы начисляет руководитель своего отдела.
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Начислить дополнительные баллы</div>
+  </div>
+  <form class="form" method="post" action="/manager/nutrition/points/award">
+    <div class="grid cols-3">
+      <div class="form-group">
+        <label>Сотрудник отдела</label>
+        <select name="user_id" required>
+          <option value="">Выберите сотрудника</option>
+          {{ range .Employees }}
+            <option value="{{ .ID }}">{{ .Name }} (ID {{ .EmployeeID }}) · {{ .Points }} баллов</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Количество баллов</label>
+        <input type="number" min="1" max="10000" name="delta" placeholder="например: 50" required />
+      </div>
+      <div class="form-group">
+        <label>Причина</label>
+        <input name="reason" placeholder="например: закрыт сложный кейс" />
+      </div>
+    </div>
+    <button class="button primary" type="submit">Начислить баллы</button>
+  </form>
 </div>
 
 <div class="card" style="margin-bottom: 24px;">
   <div class="card-header">
-    <div class="card-title">Баланс сотрудников</div>
+    <div class="card-title">Баланс сотрудников отдела</div>
   </div>
   <table class="table">
     <thead>
       <tr>
         <th>Сотрудник</th>
         <th>Корп. почта</th>
-        <th>Подразделение</th>
+        <th>Должность</th>
         <th>Баллы</th>
-        <th>Профиль</th>
       </tr>
     </thead>
     <tbody>
@@ -42,13 +60,12 @@
         <tr>
           <td>{{ .Name }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
           <td>{{ if .CorporateEmail }}{{ .CorporateEmail }}{{ else }}—{{ end }}</td>
-          <td>{{ if .Department }}{{ .Department }}{{ else }}—{{ end }}</td>
+          <td>{{ if .Position }}{{ .Position }}{{ else }}—{{ end }}</td>
           <td><strong>{{ .Points }}</strong></td>
-          <td><a class="button secondary" href="/admin/nutrition/employees/{{ .ID }}">Открыть</a></td>
         </tr>
       {{ else }}
         <tr>
-          <td colspan="5" class="muted">Сотрудники не найдены.</td>
+          <td colspan="4" class="muted">Сотрудники отдела не найдены.</td>
         </tr>
       {{ end }}
     </tbody>
@@ -57,7 +74,7 @@
 
 <div class="card">
   <div class="card-header">
-    <div class="card-title">История начислений и списаний</div>
+    <div class="card-title">История операций по баллам отдела</div>
   </div>
   <table class="table">
     <thead>
@@ -100,6 +117,6 @@
 </div>
 {{ end }}
 
-{{ define "admin_nutrition_points" }}
+{{ define "manager_nutrition_points" }}
   {{ template "base" . }}
 {{ end }}

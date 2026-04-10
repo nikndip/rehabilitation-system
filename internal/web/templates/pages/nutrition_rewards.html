@@ -2,7 +2,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Поощрения питания</div>
-    <div class="page-subtitle">Обменивайте баллы на поощрения и используйте их через профиль питания.</div>
+    <div class="page-subtitle">Отправляйте заявки на поощрения. Решение принимает руководитель вашего отдела.</div>
   </div>
   <div class="badge">Баланс: {{ .Points }} баллов</div>
 </div>
@@ -26,16 +26,29 @@
       <div style="display:flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
         <span class="badge">{{ .PointsCost }} баллов</span>
         {{ if .Category }}<span class="badge">{{ .Category }}</span>{{ end }}
-        {{ with index $.RewardOwnedCounts .ID }}
-          <span class="badge success">В профиле: {{ . }}</span>
+        {{ with index $.RewardProgress .ID }}
+          {{ if .HasLimit }}
+            <span class="badge {{ if .Exhausted }}warning{{ else }}success{{ end }}">Получено: {{ .Received }} / {{ .Limit }}</span>
+          {{ else }}
+            <span class="badge success">Получено: {{ .Received }} / без лимита</span>
+          {{ end }}
+          {{ if gt .Pending 0 }}
+            <span class="badge">В ожидании: {{ .Pending }}</span>
+          {{ end }}
+          {{ if gt .Rejected 0 }}
+            <span class="badge danger">Отклонено: {{ .Rejected }}</span>
+          {{ end }}
         {{ end }}
       </div>
-      {{ if ge $.Points .PointsCost }}
+      {{ $progress := index $.RewardProgress .ID }}
+      {{ if and $progress.HasLimit $progress.Exhausted }}
+        <span class="badge warning">Лимит заявок исчерпан</span>
+      {{ else if ge $.Points .PointsCost }}
         <form method="post" action="/nutrition/rewards/{{ .ID }}/redeem">
-          <button class="button primary" type="submit">Получить</button>
+          <button class="button primary" type="submit">Отправить заявку на получение</button>
         </form>
       {{ else }}
-        <span class="badge">Недостаточно баллов</span>
+        <span class="badge">Недостаточно баллов для отправки заявки</span>
       {{ end }}
     </div>
   {{ else }}

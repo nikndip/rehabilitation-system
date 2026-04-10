@@ -1,0 +1,57 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Админка питания · Аудит</div>
+    <div class="page-subtitle">Единый журнал действий по заявкам, обращениям поддержки и операциям с баллами.</div>
+  </div>
+  <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+    <a class="button secondary" href="/admin/nutrition">К панели питания</a>
+    <a class="button secondary" href="/admin/nutrition/support">Поддержка</a>
+    <a class="button secondary" href="/admin/nutrition/points">Баллы</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Журнал действий</div>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Действие</th>
+        <th>Сущность</th>
+        <th>ID сущности</th>
+        <th>Кто</th>
+        <th>Роль</th>
+        <th>Сотрудник</th>
+        <th>Отдел</th>
+        <th>Детали</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Rows }}
+        <tr>
+          <td>{{ .CreatedAt }}</td>
+          <td>{{ .ActionLabel }}</td>
+          <td>{{ .EntityLabel }}</td>
+          <td>{{ if .EntityID }}{{ .EntityID }}{{ else }}—{{ end }}</td>
+          <td>{{ .ActorName }}</td>
+          <td>{{ .ActorRoleLabel }}</td>
+          <td>{{ if .TargetUserName }}{{ .TargetUserName }}{{ else }}—{{ end }}</td>
+          <td>{{ if .TargetDepartment }}{{ .TargetDepartment }}{{ else }}—{{ end }}</td>
+          <td>{{ .Details }}</td>
+        </tr>
+      {{ else }}
+        <tr>
+          <td colspan="9" class="muted">Записи аудита пока отсутствуют.</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}
+
+{{ define "admin_nutrition_audit" }}
+  {{ template "base" . }}
+{{ end }}

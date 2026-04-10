@@ -16,6 +16,7 @@ import (
 )
 
 type nutritionQuestionnaireData struct {
+	Age                int      `json:"age"`
 	LactoseLevel       string   `json:"lactose_level"`
 	GlutenIntolerance  bool     `json:"gluten_intolerance"`
 	Allergies          []string `json:"allergies"`
@@ -133,7 +134,9 @@ func (s *Site) nutritionQuestionnaireSubmit(w http.ResponseWriter, r *http.Reque
 
 func nutritionQuestionnaireFromForm(r *http.Request) (nutritionQuestionnaireData, map[string]string) {
 	calories, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("calories_target")))
+	age, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("age")))
 	questionnaire := nutritionQuestionnaireData{
+		Age:                age,
 		LactoseLevel:       normalizeNutritionSelectValue(r.FormValue("lactose_level"), nutritionLactoseOptions(), "нет"),
 		GlutenIntolerance:  strings.TrimSpace(r.FormValue("gluten_intolerance")) == "on",
 		Allergies:          normalizeNutritionMultiSelection(r.Form["allergies"], nutritionAllergyOptions()),
@@ -187,6 +190,12 @@ func nutritionSetQuestionnaireTemplateData(data map[string]any, questionnaire nu
 
 func validateNutritionQuestionnaire(q nutritionQuestionnaireData) map[string]string {
 	errors := map[string]string{}
+	if q.Age < 0 || q.Age > 120 {
+		errors["age"] = "Укажите корректный возраст"
+	}
+	if q.Age != 0 && (q.Age < 14 || q.Age > 100) {
+		errors["age"] = "Возраст должен быть в диапазоне 14-100"
+	}
 	if strings.TrimSpace(q.NutritionGoal) == "" {
 		errors["nutrition_goal"] = "Выберите цель питания"
 	}
@@ -233,6 +242,9 @@ func (s *Site) loadNutritionQuestionnaire(userID string) (nutritionQuestionnaire
 	}
 	if strings.TrimSpace(questionnaire.MealPattern) == "" {
 		questionnaire.MealPattern = defaultData.MealPattern
+	}
+	if questionnaire.Age < 0 || questionnaire.Age > 120 {
+		questionnaire.Age = 0
 	}
 	return questionnaire, updatedAt, nil
 }

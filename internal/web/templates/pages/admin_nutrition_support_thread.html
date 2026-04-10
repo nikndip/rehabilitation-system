@@ -1,0 +1,107 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Обращение пользователя</div>
+    <div class="page-subtitle">{{ .Ticket.Subject }}</div>
+  </div>
+  <a class="button secondary" href="/admin/nutrition/support">К списку обращений</a>
+</div>
+
+{{ if .Error }}
+  <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
+{{ end }}
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
+
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-header">
+    <div class="card-title">Карточка обращения</div>
+    {{ if eq .Ticket.Status "open" }}
+      <span class="badge warning">Открыто</span>
+    {{ else if eq .Ticket.Status "answered" }}
+      <span class="badge success">Отвечено</span>
+    {{ else }}
+      <span class="badge">Закрыто</span>
+    {{ end }}
+  </div>
+  <div class="info-list">
+    <div><strong>Сотрудник:</strong> {{ .Ticket.EmployeeName }} (ID {{ .Ticket.EmployeeID }})</div>
+    <div><strong>Подразделение:</strong> {{ .Ticket.EmployeeDept }}</div>
+    <div><strong>Создано:</strong> {{ .Ticket.CreatedAt }}</div>
+    <div><strong>Обновлено:</strong> {{ .Ticket.UpdatedAt }}</div>
+    <div><strong>Последнее сообщение:</strong> {{ .Ticket.LastMessageAt }}</div>
+    <div>
+      <strong>SLA ответа:</strong>
+      {{ if .Ticket.SLAOverdue }}
+        <span class="badge danger">просрочен</span>
+      {{ else }}
+        до {{ .Ticket.SLADueAt }}
+      {{ end }}
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-header">
+    <div class="card-title">Переписка</div>
+  </div>
+  <div class="ticket-thread">
+    {{ range .Messages }}
+      <div class="ticket-message {{ .RoleClass }}">
+        <div class="ticket-meta">
+          <span>{{ .SenderName }}</span>
+          <span>·</span>
+          <span>{{ .CreatedAt }}</span>
+        </div>
+        <div>{{ .Message }}</div>
+      </div>
+    {{ else }}
+      <div class="empty-state">
+        <div class="empty-title">Сообщений пока нет</div>
+        <div class="muted">Ожидается первое сообщение от сотрудника.</div>
+      </div>
+    {{ end }}
+  </div>
+</div>
+
+<div class="grid cols-2">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Ответ пользователю</div>
+    </div>
+    {{ if eq .Ticket.Status "closed" }}
+      <div class="notice">Обращение закрыто. Чтобы продолжить диалог, переведите статус в «Открыто».</div>
+    {{ else }}
+      <form method="post" action="/admin/nutrition/support/{{ .Ticket.ID }}/messages" class="form">
+        <div class="form-group">
+          <label>Текст ответа</label>
+          <textarea name="message" rows="5" maxlength="4000" required></textarea>
+        </div>
+        <button class="button primary" type="submit">Отправить ответ</button>
+      </form>
+    {{ end }}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Статус обращения</div>
+    </div>
+    <form method="post" action="/admin/nutrition/support/{{ .Ticket.ID }}/status" class="form">
+      <div class="form-group">
+        <label>Новый статус</label>
+        <select name="status">
+          <option value="open" {{ if eq .Ticket.Status "open" }}selected{{ end }}>Открыто</option>
+          <option value="answered" {{ if eq .Ticket.Status "answered" }}selected{{ end }}>Отвечено</option>
+          <option value="closed" {{ if eq .Ticket.Status "closed" }}selected{{ end }}>Закрыто</option>
+        </select>
+      </div>
+      <button class="button secondary" type="submit">Сохранить статус</button>
+    </form>
+  </div>
+</div>
+{{ end }}
+
+{{ define "admin_nutrition_support_thread" }}
+  {{ template "base" . }}
+{{ end }}

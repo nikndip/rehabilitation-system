@@ -65,17 +65,20 @@ func (s *Site) adminNutritionDashboard(w http.ResponseWriter, r *http.Request) {
 	var issuedRewards int
 	var unlockedAchievements int
 	var pointsOperations int
+	var openSupportTickets int
 	_ = s.DB.QueryRow(`select count(*) from nutrition_questionnaire_responses`).Scan(&questionnaireCount)
 	_ = s.DB.QueryRow(`select count(distinct user_id) from nutrition_plan_meals`).Scan(&plansCount)
-	_ = s.DB.QueryRow(`select count(*) from nutrition_reward_redemptions where status = 'issued'`).Scan(&issuedRewards)
+	_ = s.DB.QueryRow(`select count(*) from nutrition_reward_redemptions where lower(status) in ('approved', 'issued')`).Scan(&issuedRewards)
 	_ = s.DB.QueryRow(`select count(*) from nutrition_user_achievements where unlocked = true`).Scan(&unlockedAchievements)
 	_ = s.DB.QueryRow(`select count(*) from nutrition_points_ledger where created_at >= now() - interval '30 days'`).Scan(&pointsOperations)
+	_ = s.DB.QueryRow(`select count(*) from support_tickets where status = 'open'`).Scan(&openSupportTickets)
 	data["Stats"] = map[string]int{
 		"Questionnaires":       questionnaireCount,
 		"Plans":                plansCount,
 		"IssuedRewards":        issuedRewards,
 		"UnlockedAchievements": unlockedAchievements,
 		"PointsOperations":     pointsOperations,
+		"OpenSupportTickets":   openSupportTickets,
 	}
 
 	employees := []adminNutritionEmployeeRow{}
@@ -138,10 +141,10 @@ func (s *Site) adminNutritionDashboard(w http.ResponseWriter, r *http.Request) {
 
 	issued := []adminNutritionRedemptionRow{}
 	rows, err = s.DB.Query(
-		`select nrr.id, u.name, coalesce(u.employee_id, ''), nrr.reward_title, nrr.status, nrr.redeemed_at, nrr.used_at
+		`select nrr.id, u.name, coalesce(u.employee_id, ''), nrr.reward_title, nrr.status, coalesce(nrr.requested_at, nrr.redeemed_at), nrr.used_at
 		 from nutrition_reward_redemptions nrr
 		 join users u on u.id = nrr.user_id
-		 order by nrr.redeemed_at desc
+		 order by coalesce(nrr.requested_at, nrr.redeemed_at) desc
 		 limit 30`,
 	)
 	if err == nil {
@@ -157,7 +160,7 @@ func (s *Site) adminNutritionDashboard(w http.ResponseWriter, r *http.Request) {
 			if usedAt.Valid {
 				item.UsedAt = usedAt.Time.Format("02.01.2006 15:04")
 			}
-			item.CanUse = strings.EqualFold(strings.TrimSpace(item.Status), "issued")
+			item.CanUse = false
 			issued = append(issued, item)
 		}
 	}

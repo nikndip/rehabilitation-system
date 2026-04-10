@@ -2,7 +2,6 @@ package site
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -142,6 +141,8 @@ type nutritionReward struct {
 	Description string
 	PointsCost  int
 	Category    string
+	MaxPerUser  int
+	HasLimit    bool
 }
 
 type nutritionAchievementView struct {
@@ -159,6 +160,7 @@ type nutritionProfileView struct {
 	CorporateEmail  string
 	Department      string
 	Position        string
+	Age             int
 	NutritionTarget string
 	DailyCalories   int
 	WaterTarget     string
@@ -196,13 +198,39 @@ type nutritionEventView struct {
 }
 
 type nutritionRewardHistoryView struct {
-	ID         string
-	Title      string
-	PointsCost int
-	Status     string
-	RedeemedAt string
-	UsedAt     string
-	CanUse     bool
+	ID             string
+	Title          string
+	PointsCost     int
+	Status         string
+	RequestedAt    string
+	ReviewedAt     string
+	UsedAt         string
+	ReviewedBy     string
+	ManagerComment string
+	CanUse         bool
+}
+
+type nutritionRewardProgressView struct {
+	Received  int
+	Pending   int
+	Rejected  int
+	Limit     int
+	HasLimit  bool
+	Exhausted bool
+}
+
+type nutritionProfileLeaderboardRow struct {
+	Rank      int
+	Name      string
+	Points    int
+	IsCurrent bool
+}
+
+type nutritionProfileLeaderboardView struct {
+	HasData bool
+	Rank    int
+	Points  int
+	Rows    []nutritionProfileLeaderboardRow
 }
 
 type nutritionAssignmentRecord struct {
@@ -547,7 +575,7 @@ func (s *Site) nutritionLeaderboardPage(w http.ResponseWriter, r *http.Request) 
 
 func (s *Site) nutritionRewardsPage(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
-	rewards := append([]nutritionReward(nil), nutritionRewardsCatalog()...)
+	rewards := s.loadNutritionRewardsCatalogWithLimits()
 	sort.SliceStable(rewards, func(i, j int) bool {
 		if rewards[i].PointsCost == rewards[j].PointsCost {
 			return rewards[i].Title < rewards[j].Title
@@ -558,7 +586,7 @@ func (s *Site) nutritionRewardsPage(w http.ResponseWriter, r *http.Request) {
 	data := s.nutritionBaseData(r, "Поощрения питания", "nutrition-rewards")
 	data["Rewards"] = rewards
 	data["Points"] = s.loadUserPoints(user.ID)
-	data["RewardOwnedCounts"] = s.loadNutritionRewardOwnedCounts(user.ID)
+	data["RewardProgress"] = s.loadNutritionRewardProgress(user.ID, rewards)
 	data["Error"] = r.URL.Query().Get("error")
 	data["Success"] = r.URL.Query().Get("success")
 	s.render(w, "nutrition_rewards", data)
@@ -577,54 +605,55 @@ func (s *Site) nutritionRewardRedeem(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/nutrition/rewards?error=Поощрение%20не%20найдено", http.StatusSeeOther)
 		return
 	}
-
-	_ = db.EnsureUserDefaults(s.DB, user.ID)
-	tx, err := s.DB.Begin()
-	if err != nil {
-		http.Redirect(w, r, "/nutrition/rewards?error=Не%20удалось%20создать%20заявку", http.StatusSeeOther)
-		return
-	}
-	defer tx.Rollback()
-
-	_, err = s.applyNutritionPointsChangeTx(
-		tx,
-		user.ID,
-		-reward.PointsCost,
-		"reward_redeem",
-		"Списание за поощрение «"+reward.Title+"»",
-		"nutrition_reward",
-		reward.ID,
-		user.ID,
-	)
-	if err != nil {
-		if errors.Is(err, errNutritionInsufficientPoints) {
-			http.Redirect(w, r, "/nutrition/rewards?error=Недостаточно%20баллов", http.StatusSeeOther)
-			return
-		}
-		http.Redirect(w, r, "/nutrition/rewards?error=Не%20удалось%20обновить%20баланс%20баллов", http.StatusSeeOther)
+	if s.loadUserPoints(user.ID) < reward.PointsCost {
+		http.Redirect(w, r, "/nutrition/rewards?error=Недостаточно%20баллов%20для%20отправки%20заявки", http.StatusSeeOther)
 		return
 	}
 
-	_, err = tx.Exec(
-		`insert into nutrition_reward_redemptions (user_id, reward_id, reward_title, points_cost, status)
-		 values ($1, $2, $3, $4, 'issued')`,
+	limit, hasLimit := s.loadNutritionRewardLimit(reward.ID)
+	received, _ := s.loadNutritionRewardCountsForLimit(user.ID, reward.ID)
+	if hasLimit && received >= limit {
+		http.Redirect(w, r, "/nutrition/rewards?error="+url.QueryEscape("Лимит заявок на поощрение «"+reward.Title+"» исчерпан"), http.StatusSeeOther)
+		return
+	}
+	var requestID string
+	err := s.DB.QueryRow(
+		`insert into nutrition_reward_redemptions (
+		    user_id,
+		    reward_id,
+		    reward_title,
+		    points_cost,
+		    status,
+		    requested_at,
+		    manager_comment
+		  )
+		  values ($1, $2, $3, $4, 'pending', now(), '')
+		  returning id::text`,
 		user.ID,
 		reward.ID,
 		reward.Title,
 		reward.PointsCost,
-	)
+	).Scan(&requestID)
 	if err != nil {
-		http.Redirect(w, r, "/nutrition/rewards?error=Не%20удалось%20сохранить%20поощрение", http.StatusSeeOther)
+		http.Redirect(w, r, "/nutrition/rewards?error=Не%20удалось%20отправить%20заявку", http.StatusSeeOther)
 		return
 	}
 
-	if err := tx.Commit(); err != nil {
-		http.Redirect(w, r, "/nutrition/rewards?error=Не%20удалось%20завершить%20операцию", http.StatusSeeOther)
-		return
-	}
-
-	s.insertNutritionEvent(user.ID, "Получено поощрение: «"+reward.Title+"».")
-	http.Redirect(w, r, "/nutrition/rewards?success="+url.QueryEscape("Поощрение «"+reward.Title+"» добавлено в профиль"), http.StatusSeeOther)
+	s.insertNutritionEvent(user.ID, "Отправлена заявка на поощрение: «"+reward.Title+"».")
+	s.logNutritionAudit(
+		user,
+		"reward_request_created",
+		"reward_request",
+		requestID,
+		user.ID,
+		strings.TrimSpace(user.Department),
+		map[string]any{
+			"reward_id":    reward.ID,
+			"reward_title": reward.Title,
+			"points_cost":  reward.PointsCost,
+		},
+	)
+	http.Redirect(w, r, "/nutrition/rewards?success="+url.QueryEscape("Заявка на поощрение «"+reward.Title+"» отправлена руководителю"), http.StatusSeeOther)
 }
 
 func (s *Site) nutritionAchievementsPage(w http.ResponseWriter, r *http.Request) {
@@ -649,12 +678,15 @@ func (s *Site) nutritionProfilePage(w http.ResponseWriter, r *http.Request) {
 	data["ReminderSettings"] = s.loadNutritionReminderSettings(user.ID)
 	data["RewardHistory"] = s.loadNutritionRewardHistory(user.ID)
 	data["RestrictionSummary"] = summary
+	data["LeaderboardCompact"] = s.loadNutritionProfileLeaderboard(user.ID)
+	data["UserRole"] = strings.ToLower(strings.TrimSpace(user.Role))
 
 	data["Profile"] = nutritionProfileView{
 		EmployeeID:      user.EmployeeID,
 		Department:      user.Department,
 		Position:        user.Position,
 		CorporateEmail:  user.CorporateEmail,
+		Age:             questionnaire.Age,
 		NutritionTarget: nutritionOrDefault(questionnaire.NutritionGoal, "Поддержка восстановления и стабильная энергия"),
 		DailyCalories:   nutritionIntOrDefault(questionnaire.CaloriesTarget, 2100),
 		WaterTarget:     nutritionOrDefault(questionnaire.WaterTargetLiters, "1.8") + " л/день",
@@ -700,7 +732,7 @@ func (s *Site) nutritionRewardUse(w http.ResponseWriter, r *http.Request) {
 	res, err := s.DB.Exec(
 		`update nutrition_reward_redemptions
 		 set status = 'used', used_at = now()
-		 where id = $1 and user_id = $2 and status = 'issued'`,
+		 where id = $1 and user_id = $2 and status in ('approved', 'issued')`,
 		redemptionID,
 		user.ID,
 	)
@@ -719,27 +751,7 @@ func (s *Site) nutritionRewardUse(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Site) nutritionSupportPage(w http.ResponseWriter, r *http.Request) {
-	data := s.nutritionBaseData(r, "Поддержка питания", "nutrition-support")
-	data["Contacts"] = []nutritionSupportContact{
-		{
-			Title:       "Нутрициолог проекта",
-			Description: "Персональные вопросы по рациону, восстановлению и корректировке плана.",
-			ActionLabel: "Почта",
-			ActionValue: "nutrition-support@company.local",
-		},
-		{
-			Title:       "Координатор реабилитации",
-			Description: "Организационные вопросы по модулю питания и начислению поощрений.",
-			ActionLabel: "Внутренний номер",
-			ActionValue: "#4721",
-		},
-	}
-	data["FAQ"] = []nutritionFAQItem{
-		{Question: "Как часто обновляется план питания?", Answer: "План на неделю можно корректировать ежедневно в разделе «План питания»."},
-		{Question: "Как работает умная замена?", Answer: "Система подбирает блюдо той же категории с ближайшим КБЖУ и применяет его в 1 клик."},
-		{Question: "Когда начисляются баллы?", Answer: "Баллы начисляются автоматически при закрытии всех приемов пищи за день."},
-	}
-	s.render(w, "nutrition_support", data)
+	s.nutritionSupportTicketsPage(w, r)
 }
 
 func (s *Site) nutritionBaseData(r *http.Request, title, active string) map[string]any {
@@ -2251,36 +2263,127 @@ func nutritionMealsRedirectURL(query, category, dayKey, success, errMsg, slot, r
 	return result
 }
 
-func (s *Site) loadNutritionRewardOwnedCounts(userID string) map[string]int {
-	counts := map[string]int{}
+func (s *Site) loadNutritionRewardsCatalogWithLimits() []nutritionReward {
+	rewards := append([]nutritionReward(nil), nutritionRewardsCatalog()...)
 	rows, err := s.DB.Query(
-		`select reward_id, count(*)
+		`select reward_id, max_per_user
+		 from nutrition_reward_limits
+		 where max_per_user is not null and max_per_user > 0`,
+	)
+	if err != nil {
+		return rewards
+	}
+	defer rows.Close()
+
+	limits := map[string]int{}
+	for rows.Next() {
+		var rewardID string
+		var limit int
+		if scanErr := rows.Scan(&rewardID, &limit); scanErr != nil {
+			continue
+		}
+		limits[strings.TrimSpace(rewardID)] = limit
+	}
+
+	for i := range rewards {
+		limit, ok := limits[rewards[i].ID]
+		if !ok || limit <= 0 {
+			continue
+		}
+		rewards[i].HasLimit = true
+		rewards[i].MaxPerUser = limit
+	}
+	return rewards
+}
+
+func (s *Site) loadNutritionRewardLimit(rewardID string) (int, bool) {
+	var maxPerUser sql.NullInt64
+	err := s.DB.QueryRow(
+		`select max_per_user
+		 from nutrition_reward_limits
+		 where reward_id = $1`,
+		strings.TrimSpace(rewardID),
+	).Scan(&maxPerUser)
+	if err != nil || !maxPerUser.Valid || maxPerUser.Int64 <= 0 {
+		return 0, false
+	}
+	return int(maxPerUser.Int64), true
+}
+
+func (s *Site) loadNutritionRewardCountsForLimit(userID, rewardID string) (int, int) {
+	var received int
+	var pending int
+	_ = s.DB.QueryRow(
+		`select
+		    count(*) filter (where lower(btrim(coalesce(status, ''))) in ('approved', 'issued', 'used', 'completed')) as received,
+		    count(*) filter (where lower(btrim(coalesce(status, ''))) = 'pending') as pending
+		 from nutrition_reward_redemptions
+		 where user_id = $1 and reward_id = $2`,
+		userID,
+		strings.TrimSpace(rewardID),
+	).Scan(&received, &pending)
+	return received, pending
+}
+
+func (s *Site) loadNutritionRewardProgress(userID string, rewards []nutritionReward) map[string]nutritionRewardProgressView {
+	progress := map[string]nutritionRewardProgressView{}
+	for _, reward := range rewards {
+		progress[reward.ID] = nutritionRewardProgressView{
+			Limit:    reward.MaxPerUser,
+			HasLimit: reward.HasLimit,
+		}
+	}
+
+	rows, err := s.DB.Query(
+		`select reward_id,
+		        count(*) filter (where lower(btrim(coalesce(status, ''))) in ('approved', 'issued', 'used', 'completed')) as received,
+		        count(*) filter (where lower(btrim(coalesce(status, ''))) = 'pending') as pending,
+		        count(*) filter (where lower(btrim(coalesce(status, ''))) = 'rejected') as rejected
 		 from nutrition_reward_redemptions
 		 where user_id = $1
 		 group by reward_id`,
 		userID,
 	)
 	if err != nil {
-		return counts
+		return progress
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		var rewardID string
-		var count int
-		if err := rows.Scan(&rewardID, &count); err != nil {
+		var received int
+		var pending int
+		var rejected int
+		if scanErr := rows.Scan(&rewardID, &received, &pending, &rejected); scanErr != nil {
 			continue
 		}
-		counts[rewardID] = count
+		item := progress[rewardID]
+		item.Received = received
+		item.Pending = pending
+		item.Rejected = rejected
+		if item.HasLimit {
+			item.Exhausted = item.Received >= item.Limit
+		}
+		progress[rewardID] = item
 	}
-	return counts
+	return progress
 }
 
 func (s *Site) loadNutritionRewardHistory(userID string) []nutritionRewardHistoryView {
 	rows, err := s.DB.Query(
-		`select id, reward_title, points_cost, status, redeemed_at, used_at
-		 from nutrition_reward_redemptions
-		 where user_id = $1
-		 order by redeemed_at desc`,
+		`select rr.id,
+		        rr.reward_title,
+		        rr.points_cost,
+		        coalesce(rr.status, 'pending'),
+		        rr.requested_at,
+		        rr.reviewed_at,
+		        rr.used_at,
+		        coalesce(m.name, ''),
+		        coalesce(rr.manager_comment, '')
+		 from nutrition_reward_redemptions rr
+		 left join users m on m.id = rr.reviewed_by
+		 where rr.user_id = $1
+		 order by rr.requested_at desc`,
 		userID,
 	)
 	if err != nil {
@@ -2291,19 +2394,123 @@ func (s *Site) loadNutritionRewardHistory(userID string) []nutritionRewardHistor
 	history := []nutritionRewardHistoryView{}
 	for rows.Next() {
 		var item nutritionRewardHistoryView
-		var redeemedAt time.Time
+		var requestedAt time.Time
+		var reviewedAt sql.NullTime
 		var usedAt sql.NullTime
-		if err := rows.Scan(&item.ID, &item.Title, &item.PointsCost, &item.Status, &redeemedAt, &usedAt); err != nil {
+		if scanErr := rows.Scan(
+			&item.ID,
+			&item.Title,
+			&item.PointsCost,
+			&item.Status,
+			&requestedAt,
+			&reviewedAt,
+			&usedAt,
+			&item.ReviewedBy,
+			&item.ManagerComment,
+		); scanErr != nil {
 			continue
 		}
-		item.RedeemedAt = redeemedAt.Format("02.01.2006 15:04")
+		item.RequestedAt = requestedAt.Format("02.01.2006 15:04")
+		if reviewedAt.Valid {
+			item.ReviewedAt = reviewedAt.Time.Format("02.01.2006 15:04")
+		}
 		if usedAt.Valid {
 			item.UsedAt = usedAt.Time.Format("02.01.2006 15:04")
 		}
-		item.CanUse = strings.EqualFold(item.Status, "issued")
+		status := strings.ToLower(strings.TrimSpace(item.Status))
+		item.CanUse = status == "approved" || status == "issued"
 		history = append(history, item)
 	}
 	return history
+}
+
+func (s *Site) loadNutritionProfileLeaderboard(userID string) nutritionProfileLeaderboardView {
+	view := nutritionProfileLeaderboardView{}
+	var rank int
+	var points int
+	err := s.DB.QueryRow(
+		`with ranked as (
+		   select u.id,
+		          coalesce(up.points_balance, 0) as points,
+		          row_number() over (
+		            order by coalesce(up.points_balance, 0) desc,
+		                     coalesce(nd.days_completed, 0) desc,
+		                     coalesce(nm.completed_slots, 0) desc,
+		                     u.name
+		          ) as rank
+		   from users u
+		   left join user_points up on up.user_id = u.id
+		   left join (
+		     select user_id, count(*) filter (where day_completed = true) as days_completed
+		     from nutrition_day_progress
+		     group by user_id
+		   ) nd on nd.user_id = u.id
+		   left join (
+		     select user_id, count(*) filter (where status = 'completed') as completed_slots
+		     from nutrition_plan_meals
+		     group by user_id
+		   ) nm on nm.user_id = u.id
+		   where u.role = 'employee'
+		 )
+		 select rank, points
+		 from ranked
+		 where id = $1`,
+		userID,
+	).Scan(&rank, &points)
+	if err != nil {
+		return view
+	}
+	view.HasData = true
+	view.Rank = rank
+	view.Points = points
+
+	rows, err := s.DB.Query(
+		`with ranked as (
+		   select u.id,
+		          u.name,
+		          coalesce(up.points_balance, 0) as points,
+		          row_number() over (
+		            order by coalesce(up.points_balance, 0) desc,
+		                     coalesce(nd.days_completed, 0) desc,
+		                     coalesce(nm.completed_slots, 0) desc,
+		                     u.name
+		          ) as rank
+		   from users u
+		   left join user_points up on up.user_id = u.id
+		   left join (
+		     select user_id, count(*) filter (where day_completed = true) as days_completed
+		     from nutrition_day_progress
+		     group by user_id
+		   ) nd on nd.user_id = u.id
+		   left join (
+		     select user_id, count(*) filter (where status = 'completed') as completed_slots
+		     from nutrition_plan_meals
+		     group by user_id
+		   ) nm on nm.user_id = u.id
+		   where u.role = 'employee'
+		 )
+		 select id, name, points, rank
+		 from ranked
+		 where rank between $1 and $2
+		 order by rank`,
+		max(1, rank-2),
+		rank+2,
+	)
+	if err != nil {
+		return view
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var rowID string
+		var row nutritionProfileLeaderboardRow
+		if scanErr := rows.Scan(&rowID, &row.Name, &row.Points, &row.Rank); scanErr != nil {
+			continue
+		}
+		row.IsCurrent = rowID == userID
+		view.Rows = append(view.Rows, row)
+	}
+	return view
 }
 
 func nutritionMealLibrary() []nutritionMealCard {

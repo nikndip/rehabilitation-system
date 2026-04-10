@@ -37,6 +37,14 @@ func Seed(db *sql.DB) error {
 			Password:       "password",
 		},
 		{
+			Name:           "Алексей Орлов",
+			EmployeeID:     "30001",
+			CorporateEmail: "a.orlov@company.local",
+			Role:           "manager",
+			Department:     "Инженерный отдел",
+			Password:       "password",
+		},
+		{
 			Name:           "Администратор",
 			EmployeeID:     "90000",
 			CorporateEmail: "admin@company.local",
@@ -63,16 +71,20 @@ func ensureUser(db *sql.DB, user seedUser) (string, error) {
 	var id string
 	err := db.QueryRow("select id from users where employee_id = $1", user.EmployeeID).Scan(&id)
 	if err == nil {
-		if strings.TrimSpace(user.CorporateEmail) != "" {
-			_, _ = db.Exec(
-				`update users
-				 set corporate_email = coalesce(nullif(corporate_email, ''), $1),
-				     updated_at = now()
-				 where id = $2`,
-				strings.TrimSpace(user.CorporateEmail),
-				id,
-			)
-		}
+		_, _ = db.Exec(
+			`update users
+			 set name = $1,
+			     role = $2,
+			     department = nullif($3, ''),
+			     corporate_email = coalesce(nullif(corporate_email, ''), nullif($4, '')),
+			     updated_at = now()
+			 where id = $5`,
+			user.Name,
+			user.Role,
+			strings.TrimSpace(user.Department),
+			strings.TrimSpace(user.CorporateEmail),
+			id,
+		)
 		return id, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {

@@ -1,0 +1,73 @@
+{{ define "content" }}
+<div class="page-header">
+  <div>
+    <div class="page-title">Руководитель · Обращения отдела</div>
+    <div class="page-subtitle">Обращения сотрудников подразделения {{ .Department }}.</div>
+  </div>
+  <a class="button secondary" href="/manager/nutrition">К панели руководителя</a>
+</div>
+
+{{ if .Error }}
+  <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
+{{ end }}
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Обращения сотрудников</div>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Сотрудник</th>
+        <th>Тема</th>
+        <th>Статус</th>
+        <th>Последнее сообщение</th>
+        <th>SLA</th>
+        <th>Действие</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Tickets }}
+        <tr>
+          <td>
+            <strong>{{ .EmployeeName }}</strong><br />
+            <span class="muted">ID {{ .EmployeeID }} · {{ .EmployeeDept }}</span>
+          </td>
+          <td>{{ .Subject }}</td>
+          <td>
+            {{ if eq .Status "open" }}
+              <span class="badge warning">Открыто</span>
+            {{ else if eq .Status "answered" }}
+              <span class="badge success">Отвечено</span>
+            {{ else if eq .Status "closed" }}
+              <span class="badge">Закрыто</span>
+            {{ else }}
+              <span class="badge">{{ .Status }}</span>
+            {{ end }}
+          </td>
+          <td>{{ .LastMessageAt }}</td>
+          <td>
+            {{ if .SLAOverdue }}
+              <span class="badge danger">Просрочено</span>
+            {{ else }}
+              <span class="badge">До {{ .SLADueAt }}</span>
+            {{ end }}
+          </td>
+          <td><a class="button secondary" href="/manager/nutrition/support/{{ .ID }}">Открыть</a></td>
+        </tr>
+      {{ else }}
+        <tr>
+          <td colspan="6" class="muted">Обращений в вашем отделе пока нет.</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}
+
+{{ define "manager_nutrition_support" }}
+  {{ template "base" . }}
+{{ end }}

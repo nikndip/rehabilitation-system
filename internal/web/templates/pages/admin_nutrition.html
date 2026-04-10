@@ -2,11 +2,13 @@
 <div class="page-header">
   <div>
     <div class="page-title">Администрирование питания</div>
-    <div class="page-subtitle">Управление анкетами, достижениями, баллами и корпоративными контактами модуля питания.</div>
+    <div class="page-subtitle">Управление анкетами, достижениями, корпоративными контактами и поддержкой модуля питания.</div>
   </div>
   <div style="display:flex; gap: 10px; flex-wrap: wrap;">
     <a class="button secondary" href="/admin/nutrition/achievements">Достижения</a>
     <a class="button secondary" href="/admin/nutrition/points">Баллы</a>
+    <a class="button secondary" href="/admin/nutrition/support">Поддержка</a>
+    <a class="button secondary" href="/admin/nutrition/audit">Аудит</a>
     <a class="button secondary" href="/nutrition">К модулю питания</a>
   </div>
 </div>
@@ -49,6 +51,12 @@
       <div class="stat-label">Операций по баллам за 30 дней</div>
     </div>
   </div>
+  <div class="card stat">
+    <div>
+      <div class="stat-value">{{ index .Stats "OpenSupportTickets" }}</div>
+      <div class="stat-label">Открытых обращений поддержки</div>
+    </div>
+  </div>
 </div>
 
 <div class="grid cols-2" style="margin-bottom: 24px;">
@@ -57,8 +65,16 @@
     <div class="muted" style="margin-top: 6px;">Каталог достижений, метрики и просмотр прогресса сотрудников.</div>
   </a>
   <a class="card softer" href="/admin/nutrition/points">
-    <div class="card-title">Управление баллами</div>
-    <div class="muted" style="margin-top: 6px;">Начисление/списание баллов и аудит операций по модулю питания.</div>
+    <div class="card-title">Журнал баллов</div>
+    <div class="muted" style="margin-top: 6px;">Просмотр баланса и аудита операций по модулю питания.</div>
+  </a>
+  <a class="card softer" href="/admin/nutrition/support">
+    <div class="card-title">Обращения поддержки</div>
+    <div class="muted" style="margin-top: 6px;">Ответы пользователям и контроль статусов обращений.</div>
+  </a>
+  <a class="card softer" href="/admin/nutrition/audit">
+    <div class="card-title">Централизованный аудит</div>
+    <div class="muted" style="margin-top: 6px;">Все ключевые действия по заявкам, поддержке и баллам в едином журнале.</div>
   </a>
 </div>
 
@@ -127,9 +143,9 @@
         <th>Сотрудник</th>
         <th>Поощрение</th>
         <th>Статус</th>
-        <th>Получено</th>
+        <th>Заявка</th>
         <th>Использовано</th>
-        <th>Действие</th>
+        <th>Решение</th>
       </tr>
     </thead>
     <tbody>
@@ -138,29 +154,27 @@
           <td>{{ .EmployeeName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
           <td>{{ .Title }}</td>
           <td>
-            {{ if eq .Status "issued" }}
-              <span class="badge warning">Выдано</span>
+            {{ if eq .Status "pending" }}
+              <span class="badge warning">Ожидает</span>
+            {{ else if eq .Status "approved" }}
+              <span class="badge success">Одобрено</span>
+            {{ else if eq .Status "issued" }}
+              <span class="badge success">Выдано</span>
+            {{ else if eq .Status "rejected" }}
+              <span class="badge danger">Отклонено</span>
             {{ else if eq .Status "used" }}
-              <span class="badge success">Использовано</span>
+              <span class="badge">Использовано</span>
             {{ else }}
               <span class="badge">{{ .Status }}</span>
             {{ end }}
           </td>
           <td>{{ .RedeemedAt }}</td>
           <td>{{ if .UsedAt }}{{ .UsedAt }}{{ else }}—{{ end }}</td>
-          <td>
-            {{ if .CanUse }}
-              <form method="post" action="/admin/nutrition/redemptions/{{ .ID }}/use">
-                <button class="button secondary" type="submit">Отметить использованным</button>
-              </form>
-            {{ else }}
-              <span class="badge">Нет действия</span>
-            {{ end }}
-          </td>
+          <td>{{ if eq .Status "pending" }}Ожидает руководителя{{ else }}Просмотр{{ end }}</td>
         </tr>
       {{ else }}
         <tr>
-          <td colspan="6" class="muted">Поощрения не выдавались.</td>
+          <td colspan="6" class="muted">Заявки на поощрения пока не поступали.</td>
         </tr>
       {{ end }}
     </tbody>

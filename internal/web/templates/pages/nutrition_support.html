@@ -2,7 +2,81 @@
 <div class="page-header">
   <div>
     <div class="page-title">Поддержка модуля питания</div>
-    <div class="page-subtitle">Контакты специалистов и ответы на частые вопросы.</div>
+    <div class="page-subtitle">Создавайте обращения, ведите переписку и отслеживайте статусы ответов.</div>
+  </div>
+</div>
+
+{{ if .Error }}
+  <div class="notice error" style="margin-bottom: 16px;">{{ .Error }}</div>
+{{ end }}
+{{ if .Success }}
+  <div class="notice" style="margin-bottom: 16px;">{{ .Success }}</div>
+{{ end }}
+
+<div class="grid cols-2" style="margin-bottom: 24px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Мои обращения</div>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Тема</th>
+          <th>Статус</th>
+          <th>Последнее сообщение</th>
+          <th>SLA ответа</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ range .Tickets }}
+          <tr>
+            <td>{{ .Subject }}</td>
+            <td>
+              {{ if eq .Status "open" }}
+                <span class="badge warning">Открыто</span>
+              {{ else if eq .Status "answered" }}
+                <span class="badge success">Отвечено</span>
+              {{ else if eq .Status "closed" }}
+                <span class="badge">Закрыто</span>
+              {{ else }}
+                <span class="badge">{{ .Status }}</span>
+              {{ end }}
+            </td>
+            <td>{{ .LastMessageAt }}</td>
+            <td>
+              {{ if .SLAOverdue }}
+                <span class="badge danger">Просрочено</span>
+              {{ else }}
+                <span class="badge">До {{ .SLADueAt }}</span>
+              {{ end }}
+            </td>
+            <td><a class="button secondary" href="/nutrition/support/{{ .ID }}">Открыть</a></td>
+          </tr>
+        {{ else }}
+          <tr>
+            <td colspan="5" class="muted">Пока нет обращений. Создайте первое сообщение ниже.</td>
+          </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Новое обращение</div>
+    </div>
+    <form method="post" action="/nutrition/support" class="form">
+      <div class="form-group">
+        <label>Тема</label>
+        <input name="subject" maxlength="200" placeholder="Кратко: о чем вопрос" required />
+      </div>
+      <div class="form-group">
+        <label>Сообщение</label>
+        <textarea name="message" rows="5" maxlength="4000" placeholder="Опишите проблему или вопрос" required></textarea>
+      </div>
+      <button class="button primary" type="submit">Создать обращение</button>
+    </form>
   </div>
 </div>
 
@@ -27,27 +101,16 @@
 
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Регламент связи</div>
+      <div class="card-title">FAQ</div>
     </div>
-    <ul class="guide-list">
-      <li>Плановые вопросы по рациону: ответ в течение 1 рабочего дня.</li>
-      <li>Срочные корректировки питания после недомогания: приоритетная обработка.</li>
-      <li>Обновление поощрений и баллов: синхронизация ежедневно до 10:00.</li>
-    </ul>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-header">
-    <div class="card-title">Частые вопросы</div>
-  </div>
-  <div class="grid" style="gap: 12px;">
-    {{ range .FAQ }}
-      <div class="timeline-item">
-        <div class="timeline-reason">{{ .Question }}</div>
-        <div class="muted" style="margin-top: 6px;">{{ .Answer }}</div>
-      </div>
-    {{ end }}
+    <div class="grid" style="gap: 12px;">
+      {{ range .FAQ }}
+        <div class="timeline-item">
+          <div class="timeline-reason">{{ .Question }}</div>
+          <div class="muted" style="margin-top: 6px;">{{ .Answer }}</div>
+        </div>
+      {{ end }}
+    </div>
   </div>
 </div>
 {{ end }}

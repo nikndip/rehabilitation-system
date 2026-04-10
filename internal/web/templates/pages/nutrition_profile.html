@@ -25,6 +25,7 @@
     {{ if .Profile.CorporateEmail }}
       <div class="muted">Корп. почта: {{ .Profile.CorporateEmail }}</div>
     {{ end }}
+    <div class="muted">Возраст: {{ if gt .Profile.Age 0 }}{{ .Profile.Age }} {{ ageSuffix .Profile.Age }}{{ else }}не указан{{ end }}</div>
     <div style="margin-top: 10px; display:flex; gap: 8px; flex-wrap: wrap;">
       <span class="badge">Текущая серия: {{ .CurrentStreak }}</span>
       <span class="badge">Лучшая серия: {{ .BestStreak }}</span>
@@ -54,6 +55,84 @@
       <div><strong>Дата опросника:</strong> {{ .RestrictionSummary.LastUpdated }}</div>
       <div><strong>Статус:</strong> {{ .RestrictionSummary.Status }}</div>
     </div>
+  </div>
+</div>
+
+<div class="grid cols-3" style="margin-top: 24px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Инструкции по ролям</div>
+    </div>
+    <div class="grid" style="gap: 10px;">
+      {{ if eq .UserRole "admin" }}
+        <a class="card softer" href="/nutrition/instructions/employee">
+          <div class="card-title">Инструкция пользователя</div>
+          <div class="muted" style="margin-top: 6px;">Опросник, план, отметки, достижения, поощрения, поддержка и рейтинг.</div>
+        </a>
+        <a class="card softer" href="/nutrition/instructions/admin">
+          <div class="card-title">Инструкция администратора</div>
+          <div class="muted" style="margin-top: 6px;">Сотрудники, анкеты, напоминания, достижения и обращения поддержки.</div>
+        </a>
+        <a class="card softer" href="/nutrition/instructions/manager">
+          <div class="card-title">Инструкция руководителя</div>
+          <div class="muted" style="margin-top: 6px;">Статистика отдела, заявки на поощрения и дополнительные баллы отдела.</div>
+        </a>
+      {{ else if eq .UserRole "employee" }}
+        <a class="card softer" href="/nutrition/instructions/employee">
+          <div class="card-title">Инструкция пользователя</div>
+          <div class="muted" style="margin-top: 6px;">Опросник, план, отметки, достижения, поощрения, поддержка и рейтинг.</div>
+        </a>
+      {{ else if eq .UserRole "manager" }}
+        <a class="card softer" href="/nutrition/instructions/manager">
+          <div class="card-title">Инструкция руководителя</div>
+          <div class="muted" style="margin-top: 6px;">Статистика отдела, заявки на поощрения и дополнительные баллы отдела.</div>
+        </a>
+      {{ else }}
+        <a class="card softer" href="/nutrition/instructions/employee">
+          <div class="card-title">Инструкция пользователя</div>
+          <div class="muted" style="margin-top: 6px;">Опросник, план, отметки, достижения, поощрения, поддержка и рейтинг.</div>
+        </a>
+      {{ end }}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Мое место в рейтинге</div>
+      <a class="button secondary" href="/nutrition/leaderboard">Полный рейтинг</a>
+    </div>
+    {{ if .LeaderboardCompact.HasData }}
+      <div style="display:flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+        <span class="badge success">Место: #{{ .LeaderboardCompact.Rank }}</span>
+        <span class="badge">Баллы: {{ .LeaderboardCompact.Points }}</span>
+      </div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Сотрудник</th>
+            <th>Баллы</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range .LeaderboardCompact.Rows }}
+            <tr>
+              <td><span class="rank-badge">{{ .Rank }}</span></td>
+              <td>
+                {{ .Name }}
+                {{ if .IsCurrent }}<span class="badge success">Вы</span>{{ end }}
+              </td>
+              <td>{{ .Points }}</td>
+            </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    {{ else }}
+      <div class="empty-state">
+        <div class="empty-title">Недостаточно данных для позиции в рейтинге</div>
+        <div class="muted">Когда сотрудники начнут накапливать баллы, ваше место появится автоматически.</div>
+      </div>
+    {{ end }}
   </div>
 </div>
 
@@ -95,7 +174,7 @@
 
 <div class="card" style="margin-top: 24px;">
   <div class="card-header">
-    <div class="card-title">Полученные поощрения</div>
+    <div class="card-title">История заявок на поощрения</div>
     <a class="button secondary" href="/nutrition/rewards">К каталогу</a>
   </div>
   <table class="table">
@@ -104,8 +183,10 @@
         <th>Поощрение</th>
         <th>Стоимость</th>
         <th>Статус</th>
-        <th>Получено</th>
+        <th>Заявка</th>
+        <th>Решение</th>
         <th>Использовано</th>
+        <th>Комментарий</th>
         <th>Действие</th>
       </tr>
     </thead>
@@ -115,16 +196,24 @@
           <td>{{ .Title }}</td>
           <td>{{ .PointsCost }}</td>
           <td>
-            {{ if eq .Status "issued" }}
-              <span class="badge warning">Выдано</span>
+            {{ if eq .Status "pending" }}
+              <span class="badge">Ожидает согласования</span>
+            {{ else if eq .Status "approved" }}
+              <span class="badge success">Одобрено</span>
+            {{ else if eq .Status "issued" }}
+              <span class="badge success">Выдано</span>
+            {{ else if eq .Status "rejected" }}
+              <span class="badge danger">Отклонено</span>
             {{ else if eq .Status "used" }}
-              <span class="badge success">Использовано</span>
+              <span class="badge warning">Использовано</span>
             {{ else }}
               <span class="badge">{{ .Status }}</span>
             {{ end }}
           </td>
-          <td>{{ .RedeemedAt }}</td>
+          <td>{{ .RequestedAt }}</td>
+          <td>{{ if .ReviewedAt }}{{ .ReviewedAt }}{{ else }}—{{ end }}</td>
           <td>{{ if .UsedAt }}{{ .UsedAt }}{{ else }}—{{ end }}</td>
+          <td>{{ if .ManagerComment }}{{ .ManagerComment }}{{ else }}—{{ end }}</td>
           <td>
             {{ if .CanUse }}
               <form method="post" action="/nutrition/profile/redemptions/{{ .ID }}/use">
@@ -137,7 +226,7 @@
         </tr>
       {{ else }}
         <tr>
-          <td colspan="6" class="muted">Поощрения еще не получены.</td>
+          <td colspan="8" class="muted">Заявки на поощрения еще не отправлялись.</td>
         </tr>
       {{ end }}
     </tbody>

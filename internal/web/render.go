@@ -89,6 +89,8 @@ func NewRenderer() (*Renderer, error) {
 				return "Пропущено"
 			case "open":
 				return "Открыто"
+			case "answered":
+				return "Отвечено"
 			case "closed":
 				return "Закрыто"
 			case "resolved":
@@ -105,10 +107,29 @@ func NewRenderer() (*Renderer, error) {
 			switch strings.ToLower(strings.TrimSpace(value)) {
 			case "employee":
 				return "Сотрудник"
+			case "manager":
+				return "Руководитель"
 			case "admin":
 				return "Администратор"
 			default:
 				return "Сотрудник"
+			}
+		},
+		"ageSuffix": func(age int) string {
+			if age <= 0 {
+				return ""
+			}
+			lastTwo := age % 100
+			if lastTwo >= 11 && lastTwo <= 14 {
+				return "лет"
+			}
+			switch age % 10 {
+			case 1:
+				return "год"
+			case 2, 3, 4:
+				return "года"
+			default:
+				return "лет"
 			}
 		},
 	}

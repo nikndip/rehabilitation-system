@@ -72,9 +72,16 @@ func (s *Site) Router() chi.Router {
 			nr.Get("/questionnaire", s.nutritionQuestionnairePage)
 			nr.Post("/questionnaire", s.nutritionQuestionnaireSubmit)
 			nr.Get("/profile", s.nutritionProfilePage)
+			nr.Get("/instructions/employee", s.nutritionInstructionEmployeePage)
+			nr.Get("/instructions/admin", s.nutritionInstructionAdminPage)
+			nr.Get("/instructions/manager", s.nutritionInstructionManagerPage)
 			nr.Post("/profile/reminders", s.nutritionProfileReminderSettingsUpdate)
 			nr.Post("/profile/redemptions/{id}/use", s.nutritionRewardUse)
 			nr.Get("/support", s.nutritionSupportPage)
+			nr.Post("/support", s.nutritionSupportCreate)
+			nr.Get("/support/{id}", s.nutritionSupportThreadPage)
+			nr.Post("/support/{id}/messages", s.nutritionSupportMessageCreate)
+			nr.Post("/support/{id}/close", s.nutritionSupportClose)
 		})
 
 		pr.Route("/admin", func(ar chi.Router) {
@@ -83,18 +90,36 @@ func (s *Site) Router() chi.Router {
 				http.Redirect(w, r, "/admin/nutrition", http.StatusSeeOther)
 			})
 			ar.Get("/nutrition", s.adminNutritionDashboard)
+			ar.Get("/nutrition/audit", s.adminNutritionAuditPage)
 			ar.Get("/nutrition/achievements", s.adminNutritionAchievementsPage)
 			ar.Post("/nutrition/achievements", s.adminNutritionAchievementCreate)
 			ar.Post("/nutrition/achievements/{id}/update", s.adminNutritionAchievementUpdate)
 			ar.Post("/nutrition/achievements/{id}/delete", s.adminNutritionAchievementDelete)
 			ar.Get("/nutrition/points", s.adminNutritionPointsPage)
-			ar.Post("/nutrition/points/adjust", s.adminNutritionPointsAdjust)
+			ar.Get("/nutrition/support", s.adminNutritionSupportPage)
+			ar.Get("/nutrition/support/{id}", s.adminNutritionSupportThreadPage)
+			ar.Post("/nutrition/support/{id}/messages", s.adminNutritionSupportMessageCreate)
+			ar.Post("/nutrition/support/{id}/status", s.adminNutritionSupportStatusUpdate)
 			ar.Get("/nutrition/employees/{id}", s.adminNutritionEmployeePage)
 			ar.Post("/nutrition/employees/{id}/email", s.adminNutritionEmployeeEmailUpdate)
 			ar.Post("/nutrition/employees/{id}/reminders", s.adminNutritionEmployeeReminderUpdate)
 			ar.Post("/nutrition/employees/{id}/questionnaire", s.adminNutritionEmployeeQuestionnaireUpdate)
 			ar.Post("/nutrition/employees/{id}/plan/assign", s.adminNutritionEmployeePlanAssign)
-			ar.Post("/nutrition/redemptions/{id}/use", s.adminNutritionRedemptionUse)
+		})
+
+		pr.Route("/manager", func(mr chi.Router) {
+			mr.Use(s.requireRoles("manager"))
+			mr.Get("/", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/manager/nutrition", http.StatusSeeOther)
+			})
+			mr.Get("/nutrition", s.managerNutritionDashboardPage)
+			mr.Get("/nutrition/points", s.managerNutritionPointsPage)
+			mr.Post("/nutrition/points/award", s.managerNutritionPointsAward)
+			mr.Get("/nutrition/support", s.managerNutritionSupportPage)
+			mr.Get("/nutrition/support/{id}", s.managerNutritionSupportThreadPage)
+			mr.Post("/nutrition/support/{id}/messages", s.managerNutritionSupportMessageCreate)
+			mr.Post("/nutrition/reward-requests/{id}/approve", s.managerNutritionRewardApprove)
+			mr.Post("/nutrition/reward-requests/{id}/reject", s.managerNutritionRewardReject)
 		})
 	})
 
@@ -145,6 +170,7 @@ func (s *Site) notificationsClear(w http.ResponseWriter, r *http.Request) {
 
 func (s *Site) loadNotifications(userID string) []planChangeView {
 	entries := []notificationHistoryEntry{}
+	now := time.Now()
 	clearedAt := time.Unix(0, 0).UTC()
 	var userRole string
 	_ = s.DB.QueryRow(`select role from users where id = $1`, userID).Scan(&userRole)
@@ -155,9 +181,18 @@ func (s *Site) loadNotifications(userID string) []planChangeView {
 		userID,
 	).Scan(&clearedAt)
 
-	entries = append(entries, s.loadNutritionNotificationEntries(userID, clearedAt, time.Now())...)
+	entries = append(entries, s.loadNutritionNotificationEntries(userID, clearedAt, now)...)
 	if strings.EqualFold(strings.TrimSpace(userRole), "admin") {
 		entries = append(entries, s.loadNutritionAdminQuestionnaireNotifications(clearedAt)...)
+		entries = append(entries, s.loadNutritionAdminSupportNotifications(clearedAt)...)
+		entries = append(entries, s.loadNutritionAdminRewardSLANotifications(clearedAt, now)...)
+		entries = append(entries, s.loadNutritionAdminSupportSLANotifications(clearedAt, now)...)
+	}
+	if strings.EqualFold(strings.TrimSpace(userRole), "manager") {
+		entries = append(entries, s.loadNutritionManagerRewardRequestNotifications(userID, clearedAt)...)
+		entries = append(entries, s.loadNutritionManagerSupportNotifications(userID, clearedAt)...)
+		entries = append(entries, s.loadNutritionManagerRewardSLANotifications(userID, clearedAt, now)...)
+		entries = append(entries, s.loadNutritionManagerSupportSLANotifications(userID, clearedAt, now)...)
 	}
 
 	sort.Slice(entries, func(i, j int) bool {
@@ -184,12 +219,12 @@ func (s *Site) render(w http.ResponseWriter, name string, data map[string]any) {
 func (s *Site) requireRoles(roles ...string) func(http.Handler) http.Handler {
 	allowed := map[string]bool{}
 	for _, role := range roles {
-		allowed[role] = true
+		allowed[strings.ToLower(strings.TrimSpace(role))] = true
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user := middleware.UserFromContext(r.Context())
-			if user == nil || !allowed[user.Role] {
+			if user == nil || !allowed[strings.ToLower(strings.TrimSpace(user.Role))] {
 				http.Error(w, "Доступ запрещён", http.StatusForbidden)
 				return
 			}

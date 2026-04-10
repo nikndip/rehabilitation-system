@@ -36,6 +36,12 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 10h8"/><path d="M8 14h5"/></svg>
     Поддержка
   </a>
+  {{ if and .User (eq .User.Role "manager") }}
+    <a class="nav-item {{ if eq .Active "nutrition-manager" }}active{{ end }}" href="/manager/nutrition">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11c1.7 0 3-1.5 3-3.5S17.7 4 16 4s-3 1.5-3 3.5 1.3 3.5 3 3.5z"/><path d="M8 11c1.7 0 3-1.5 3-3.5S9.7 4 8 4 5 5.5 5 7.5 6.3 11 8 11z"/><path d="M2 20c0-3 2.5-5 6-5"/><path d="M10 20c0-3 2.5-5 6-5s6 2 6 5"/></svg>
+      Руководитель
+    </a>
+  {{ end }}
   {{ if and .User (eq .User.Role "admin") }}
     <a class="nav-item {{ if eq .Active "nutrition-admin" }}active{{ end }}" href="/admin/nutrition">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6z"/></svg>
@@ -67,6 +73,12 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c2-4 6-6 8-6s6 2 8 6"/></svg>
     Профиль
   </a>
+  {{ if and .User (eq .User.Role "manager") }}
+    <a class="{{ if eq .Active "nutrition-manager" }}active{{ end }}" href="/manager/nutrition">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11c1.7 0 3-1.5 3-3.5S17.7 4 16 4s-3 1.5-3 3.5 1.3 3.5 3 3.5z"/><path d="M8 11c1.7 0 3-1.5 3-3.5S9.7 4 8 4 5 5.5 5 7.5 6.3 11 8 11z"/><path d="M2 20c0-3 2.5-5 6-5"/><path d="M10 20c0-3 2.5-5 6-5s6 2 6 5"/></svg>
+      Руковод.
+    </a>
+  {{ end }}
   {{ if and .User (eq .User.Role "admin") }}
     <a class="{{ if eq .Active "nutrition-admin" }}active{{ end }}" href="/admin/nutrition">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6z"/></svg>
