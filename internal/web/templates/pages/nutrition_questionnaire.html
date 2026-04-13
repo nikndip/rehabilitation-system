@@ -18,20 +18,24 @@
 
 <div class="card" style="margin-bottom: 16px;">
   <div class="quiz-progress">
-    <div class="card-title">Прогресс анкеты</div>
+    <div class="quiz-progress-head">
+      <div class="quiz-progress-title" id="nutrition-quiz-step-label">Шаг 1 из 5</div>
+      <div class="quiz-progress-percent" id="nutrition-quiz-progress-percent">20%</div>
+    </div>
+    <div class="progress"><span id="nutrition-quiz-progress-bar" style="width: 20%;"></span></div>
     <div class="quiz-stepper">
-      <span class="quiz-step-indicator active">1. Ограничения</span>
-      <span class="quiz-step-indicator active">2. Реакции</span>
-      <span class="quiz-step-indicator active">3. Режим</span>
-      <span class="quiz-step-indicator active">4. Цели</span>
-      <span class="quiz-step-indicator active">5. Предпочтения</span>
+      <span class="quiz-step-indicator current" data-step="0">1. Ограничения</span>
+      <span class="quiz-step-indicator upcoming" data-step="1">2. Реакции</span>
+      <span class="quiz-step-indicator upcoming" data-step="2">3. Режим</span>
+      <span class="quiz-step-indicator upcoming" data-step="3">4. Цели</span>
+      <span class="quiz-step-indicator upcoming" data-step="4">5. Предпочтения</span>
     </div>
     <div class="muted">Заполните все блоки и сохраните анкету для корректного расчета рекомендаций.</div>
   </div>
 </div>
 
-<form method="post" action="/nutrition/questionnaire" class="form">
-  <div class="card" style="margin-bottom: 16px;">
+<form method="post" action="/nutrition/questionnaire" class="form" id="nutrition-questionnaire-form">
+  <div class="card quiz-step" data-step="0">
     <div class="card-title">1. Медицинские ограничения (жесткие)</div>
     <div class="form-grid" style="margin-top: 12px;">
       <div class="form-group">
@@ -80,7 +84,7 @@
     </div>
   </div>
 
-  <div class="card" style="margin-bottom: 16px;">
+  <div class="card quiz-step" data-step="1" hidden>
     <div class="card-title">2. Реакция на продукты (мягкие ограничения)</div>
     <div class="form-grid" style="margin-top: 12px;">
       <div class="form-group">
@@ -106,7 +110,7 @@
     </div>
   </div>
 
-  <div class="card" style="margin-bottom: 16px;">
+  <div class="card quiz-step" data-step="2" hidden>
     <div class="card-title">3. Рабочий режим</div>
     <div class="form-grid" style="margin-top: 12px;">
       <div class="form-group">
@@ -139,7 +143,7 @@
     </div>
   </div>
 
-  <div class="card" style="margin-bottom: 16px;">
+  <div class="card quiz-step" data-step="3" hidden>
     <div class="card-title">4. Цели восстановления и расчет плана</div>
     <div class="form-grid" style="margin-top: 12px;">
       <div class="form-group">
@@ -201,7 +205,7 @@
     </div>
   </div>
 
-  <div class="card" style="margin-bottom: 16px;">
+  <div class="card quiz-step" data-step="4" hidden>
     <div class="card-title">5. Пищевые предпочтения</div>
     <div class="form-group" style="margin-top: 12px;">
       <label>Что сотрудник точно не ест</label>
@@ -220,11 +224,77 @@
     </div>
   </div>
 
-  <div style="display:flex; gap: 10px; flex-wrap: wrap;">
-    <button class="button primary" type="submit">Сохранить опросник</button>
+  <div class="quiz-actions">
+    <button class="button secondary" type="button" id="nutrition-quiz-prev">Назад</button>
+    <button class="button primary" type="button" id="nutrition-quiz-next">Далее</button>
+    <button class="button primary" type="submit" id="nutrition-quiz-submit" style="display:none;">Сохранить опросник</button>
     <a class="button secondary" href="/nutrition/profile">Отмена</a>
   </div>
 </form>
+
+<script>
+  (function() {
+    var steps = Array.from(document.querySelectorAll('.quiz-step'));
+    if (!steps.length) return;
+
+    var indicators = Array.from(document.querySelectorAll('.quiz-step-indicator'));
+    var progressBar = document.getElementById('nutrition-quiz-progress-bar');
+    var progressPercent = document.getElementById('nutrition-quiz-progress-percent');
+    var stepLabel = document.getElementById('nutrition-quiz-step-label');
+    var prevBtn = document.getElementById('nutrition-quiz-prev');
+    var nextBtn = document.getElementById('nutrition-quiz-next');
+    var submitBtn = document.getElementById('nutrition-quiz-submit');
+    var current = {{ if or (index .Errors "age") (index .Errors "nutrition_goal") (index .Errors "calories_target") (index .Errors "meal_pattern") }}3{{ else }}0{{ end }};
+
+    function render() {
+      steps.forEach(function(step, idx) {
+        step.hidden = idx !== current;
+      });
+
+      indicators.forEach(function(indicator, idx) {
+        indicator.classList.remove('completed', 'current', 'upcoming');
+        if (idx < current) {
+          indicator.classList.add('completed');
+        } else if (idx === current) {
+          indicator.classList.add('current');
+        } else {
+          indicator.classList.add('upcoming');
+        }
+      });
+
+      var total = steps.length;
+      var percent = Math.round(((current + 1) / total) * 100);
+      progressBar.style.width = percent + '%';
+      progressPercent.textContent = percent + '%';
+      stepLabel.textContent = 'Шаг ' + (current + 1) + ' из ' + total;
+
+      prevBtn.disabled = current === 0;
+      if (current === total - 1) {
+        nextBtn.style.display = 'none';
+        submitBtn.style.display = 'inline-flex';
+      } else {
+        nextBtn.style.display = 'inline-flex';
+        submitBtn.style.display = 'none';
+      }
+    }
+
+    nextBtn.addEventListener('click', function() {
+      if (current < steps.length - 1) {
+        current += 1;
+        render();
+      }
+    });
+
+    prevBtn.addEventListener('click', function() {
+      if (current > 0) {
+        current -= 1;
+        render();
+      }
+    });
+
+    render();
+  })();
+</script>
 {{ end }}
 
 {{ define "nutrition_questionnaire" }}

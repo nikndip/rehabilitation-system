@@ -194,7 +194,7 @@ func (s *Site) loadNutritionLeaderboard(limit int) []nutritionLeaderboardRow {
 		   from nutrition_events
 		   group by user_id
 		 ) ne on ne.user_id = u.id
-		 where u.role = 'employee'
+		 where lower(coalesce(u.role, '')) in ('employee', 'manager')
 		 order by coalesce(up.points_balance, 0) desc,
 		          coalesce(nd.days_completed, 0) desc,
 		          coalesce(nm.completed_slots, 0) desc,
@@ -203,6 +203,7 @@ func (s *Site) loadNutritionLeaderboard(limit int) []nutritionLeaderboardRow {
 		limit,
 	)
 	if err != nil {
+		log.Printf("nutrition: load leaderboard query failed: %v", err)
 		return nil
 	}
 	defer rows.Close()

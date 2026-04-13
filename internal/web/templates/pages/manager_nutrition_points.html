@@ -25,7 +25,7 @@
         <select name="user_id" required>
           <option value="">Выберите сотрудника</option>
           {{ range .Employees }}
-            <option value="{{ .ID }}">{{ .Name }} (ID {{ .EmployeeID }}) · {{ .Points }} баллов</option>
+            <option value="{{ .ID }}">{{ .Name }} (табельный номер {{ .EmployeeID }}) · {{ .Points }} баллов</option>
           {{ end }}
         </select>
       </div>
@@ -58,7 +58,7 @@
     <tbody>
       {{ range .Employees }}
         <tr>
-          <td>{{ .Name }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ .Name }} <span class="muted">(табельный номер {{ .EmployeeID }})</span></td>
           <td>{{ if .CorporateEmail }}{{ .CorporateEmail }}{{ else }}—{{ end }}</td>
           <td>{{ if .Position }}{{ .Position }}{{ else }}—{{ end }}</td>
           <td><strong>{{ .Points }}</strong></td>
@@ -93,7 +93,7 @@
       {{ range .Ledger }}
         <tr>
           <td>{{ .CreatedAt }}</td>
-          <td>{{ .UserName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ .UserName }} <span class="muted">(табельный номер {{ .EmployeeID }})</span></td>
           <td>
             {{ if ge .Change 0 }}
               <span class="badge success">+{{ .Change }}</span>

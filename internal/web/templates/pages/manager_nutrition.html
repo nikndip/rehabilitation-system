@@ -71,7 +71,7 @@
     <tbody>
       {{ range .PendingRequests }}
         <tr>
-          <td>{{ .EmployeeName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ .EmployeeName }} <span class="muted">(табельный номер {{ .EmployeeID }})</span></td>
           <td>{{ .RewardTitle }}</td>
           <td>{{ .PointsCost }}</td>
           <td><span class="badge warning">Ожидает</span></td>
@@ -120,7 +120,7 @@
       <tbody>
         {{ range .Achievements }}
           <tr>
-            <td>{{ .EmployeeName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+            <td>{{ .EmployeeName }} <span class="muted">(табельный номер {{ .EmployeeID }})</span></td>
             <td>{{ .Title }}</td>
             <td>{{ .UnlockedAt }}</td>
           </tr>
@@ -148,7 +148,7 @@
       <tbody>
         {{ range .Employees }}
           <tr>
-            <td>{{ .Name }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+            <td>{{ .Name }} <span class="muted">(табельный номер {{ .EmployeeID }})</span></td>
             <td>{{ if .Position }}{{ .Position }}{{ else }}—{{ end }}</td>
             <td>{{ .Points }}</td>
           </tr>
@@ -181,7 +181,7 @@
     <tbody>
       {{ range .SupportTickets }}
         <tr>
-          <td>{{ .EmployeeName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ .EmployeeName }} <span class="muted">(табельный номер {{ .EmployeeID }})</span></td>
           <td>{{ .Subject }}</td>
           <td>
             {{ if eq .Status "open" }}
@@ -231,7 +231,7 @@
     <tbody>
       {{ range .RewardHistory }}
         <tr>
-          <td>{{ .EmployeeName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ .EmployeeName }} <span class="muted">(табельный номер {{ .EmployeeID }})</span></td>
           <td>{{ .RewardTitle }}</td>
           <td>
             {{ if eq .Status "pending" }}

@@ -19,7 +19,7 @@
     <div class="profile-name">{{ if .User }}{{ .User.Name }}{{ else }}Сотрудник{{ end }}</div>
     <div class="muted">{{ .Profile.Department }} · {{ .Profile.Position }}</div>
     <div class="profile-meta">
-      <span class="badge">ID {{ .Profile.EmployeeID }}</span>
+      <span class="badge">Табельный номер {{ .Profile.EmployeeID }}</span>
       <span class="badge">Баланс: {{ .Points }}</span>
     </div>
     {{ if .Profile.CorporateEmail }}

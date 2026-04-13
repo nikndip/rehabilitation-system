@@ -2,9 +2,12 @@
 <div class="page-header">
   <div>
     <div class="page-title">Сотрудник · Модуль питания</div>
-    <div class="page-subtitle">{{ .Employee.Name }} · ID {{ .Employee.EmployeeID }}</div>
+    <div class="page-subtitle">{{ .Employee.Name }} · табельный номер {{ .Employee.EmployeeID }}</div>
   </div>
-  <a class="button secondary" href="/admin/nutrition">Назад</a>
+  <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+    <a class="button secondary" href="/admin/nutrition/users">К сотрудникам</a>
+    <a class="button secondary" href="/admin/nutrition">К панели питания</a>
+  </div>
 </div>
 
 {{ if .Success }}
@@ -21,7 +24,7 @@
     </div>
     <div class="info-list">
       <div><strong>ФИО:</strong> {{ .Employee.Name }}</div>
-      <div><strong>ID:</strong> {{ .Employee.EmployeeID }}</div>
+      <div><strong>Табельный номер:</strong> {{ .Employee.EmployeeID }}</div>
       <div><strong>Корп. почта:</strong> {{ if .Employee.CorporateEmail }}{{ .Employee.CorporateEmail }}{{ else }}—{{ end }}</div>
       <div><strong>Подразделение:</strong> {{ .Employee.Department }}</div>
       <div><strong>Должность:</strong> {{ .Employee.Position }}</div>

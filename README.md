@@ -30,6 +30,7 @@ SSR-платформа для сопровождения сотрудников 
 
 ### Для администратора
 - контур `admin` с управлением модулем питания;
+- вкладка всех сотрудников с созданием и удалением учётных записей пользователей;
 - просмотр сотрудников, анкет и индивидуальных карточек;
 - управление каталогом достижений;
 - просмотр журнала баллов (ручная корректировка отключена);
@@ -83,7 +84,6 @@ go run .
 | `DATABASE_URL` | `postgres://rehab:rehab@localhost:5432/rehab_app?sslmode=disable` | Подключение к БД |
 | `RUN_MIGRATIONS` | `true` | Автозапуск миграций при старте |
 | `SEED_DATA` | `false` | Заполнение тестовыми данными |
-| `ALLOW_SELF_REGISTER` | `false` | Разрешить саморегистрацию сотрудников |
 | `COOKIE_NAME` | `rehab_session` | Имя cookie сессии |
 | `COOKIE_SECURE` | `false` | Передавать cookie только по HTTPS |
 | `SESSION_TTL` | `168h` | Время жизни сессии |
@@ -94,19 +94,12 @@ go run .
 - файлы миграций применяются в лексикографическом порядке из каталога `migrations/`;
 - актуальный набор миграций:
   - `001_init.sql`
-  - `002_users_optional_columns.sql`
-  - `003_nutrition_achievements_seed.sql`
-  - `004_nutrition_points_compat.sql`
-  - `005_nutrition_plan_day_date.sql`
-  - `006_nutrition_manager_support_rewards.sql`
-  - `007_support_legacy_compat.sql`
-  - `008_nutrition_sla_audit.sql`
 - тестовые данные загружаются из `internal/db/seed.go`.
 
 ## Ключевые маршруты
 
 ### Общие
-- `/login`, `/register`, `/logout`
+- `/login`, `/logout`
 - `/` (дашборд питания)
 
 ### Сотрудник (`employee`)
@@ -128,6 +121,7 @@ go run .
 
 ### Администратор (`admin`)
 - `/admin/nutrition`
+- `/admin/nutrition/users`
 - `/admin/nutrition/achievements`
 - `/admin/nutrition/points`
 - `/admin/nutrition/support`
@@ -161,6 +155,6 @@ go test ./...
 Для production-контура рекомендуется:
 - `COOKIE_SECURE=true`;
 - отдельная БД и отдельные учетные данные;
-- `ALLOW_SELF_REGISTER=false`;
+- создание учётных записей только через контур администратора;
 - регулярные бэкапы PostgreSQL;
 - отдельный мониторинг SLA по заявкам и обращениям.

@@ -37,7 +37,7 @@
         до {{ .Ticket.SLADueAt }}
       {{ end }}
     </div>
-    <div><strong>Сотрудник:</strong> {{ .Ticket.EmployeeName }} {{ if .Ticket.EmployeeID }}(ID {{ .Ticket.EmployeeID }}){{ end }}</div>
+    <div><strong>Сотрудник:</strong> {{ .Ticket.EmployeeName }} {{ if .Ticket.EmployeeID }}(табельный номер {{ .Ticket.EmployeeID }}){{ end }}</div>
   </div>
 </div>
 

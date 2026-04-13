@@ -33,12 +33,13 @@ func (s *SessionManager) Load(next http.Handler) http.Handler {
               coalesce(to_jsonb(u)->>'corporate_email', ''),
               u.role,
               coalesce(to_jsonb(u)->>'department', ''),
-              coalesce(to_jsonb(u)->>'position', '')
+              coalesce(to_jsonb(u)->>'position', ''),
+              coalesce(u.password_temp, false)
        from sessions s
        join users u on u.id = s.user_id
        where s.token = $1 and s.expires_at > now()`,
 			cookie.Value,
-		).Scan(&user.ID, &user.Name, &user.EmployeeID, &user.CorporateEmail, &user.Role, &user.Department, &user.Position)
+		).Scan(&user.ID, &user.Name, &user.EmployeeID, &user.CorporateEmail, &user.Role, &user.Department, &user.Position, &user.PasswordTemp)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				log.Printf("session load failed for token: %v", err)

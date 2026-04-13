@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"rehab-app/internal/middleware"
 )
 
 type adminNutritionEmployeeRow struct {
@@ -59,6 +61,7 @@ func (s *Site) adminNutritionDashboard(w http.ResponseWriter, r *http.Request) {
 	data := s.nutritionBaseData(r, "Администрирование питания", "nutrition-admin")
 	data["Success"] = r.URL.Query().Get("success")
 	data["Error"] = r.URL.Query().Get("error")
+	data["MealSlotOptions"] = adminNutritionSlotOptions()
 
 	var questionnaireCount int
 	var plansCount int
@@ -186,7 +189,7 @@ func (s *Site) adminNutritionEmployeePage(w http.ResponseWriter, r *http.Request
 	summary := nutritionRestrictionSummary(questionnaire, updatedAt)
 	planDays := s.buildNutritionPlan(employee.ID, time.Now())
 	rewardHistory := s.loadNutritionRewardHistory(employee.ID)
-	mealOptions := append([]nutritionMealCard(nil), nutritionMealLibrary()...)
+	mealOptions := append([]nutritionMealCard(nil), s.nutritionMealCatalog()...)
 	sort.SliceStable(mealOptions, func(i, j int) bool {
 		if mealOptions[i].Category == mealOptions[j].Category {
 			return mealOptions[i].Name < mealOptions[j].Name
@@ -273,7 +276,7 @@ func (s *Site) adminNutritionEmployeePlanAssign(w http.ResponseWriter, r *http.R
 	}
 
 	mealID := strings.TrimSpace(r.FormValue("meal_id"))
-	meal, ok := nutritionMealByID(mealID)
+	meal, ok := s.nutritionMealByID(mealID)
 	if !ok {
 		http.Redirect(w, r, "/admin/nutrition/employees/"+employeeID+"?error=Блюдо%20не%20найдено", http.StatusSeeOther)
 		return
@@ -302,6 +305,109 @@ func (s *Site) adminNutritionEmployeePlanAssign(w http.ResponseWriter, r *http.R
 		"meal_name": meal.Name,
 	})
 	http.Redirect(w, r, "/admin/nutrition/employees/"+employeeID+"?success="+url.QueryEscape("План питания обновлен"), http.StatusSeeOther)
+}
+
+func (s *Site) adminNutritionMealCreate(w http.ResponseWriter, r *http.Request) {
+	admin := middleware.UserFromContext(r.Context())
+	if admin == nil {
+		http.Redirect(w, r, "/admin/nutrition?error=Сеанс%20администратора%20не%20найден", http.StatusSeeOther)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/admin/nutrition?error=Некорректные%20данные%20формы", http.StatusSeeOther)
+		return
+	}
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	description := strings.TrimSpace(r.FormValue("description"))
+	slot := normalizeNutritionSlotKey(r.FormValue("slot"))
+	calories, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("calories")))
+	protein, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("protein")))
+	carbs, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("carbs")))
+	fats, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("fats")))
+
+	if name == "" {
+		http.Redirect(w, r, "/admin/nutrition?error=Укажите%20название%20блюда", http.StatusSeeOther)
+		return
+	}
+	if len(name) > 140 {
+		http.Redirect(w, r, "/admin/nutrition?error=Название%20блюда%20слишком%20длинное", http.StatusSeeOther)
+		return
+	}
+	if len(description) > 500 {
+		http.Redirect(w, r, "/admin/nutrition?error=Описание%20блюда%20слишком%20длинное", http.StatusSeeOther)
+		return
+	}
+	if slot == "" {
+		http.Redirect(w, r, "/admin/nutrition?error=Выберите%20категорию%20блюда", http.StatusSeeOther)
+		return
+	}
+
+	validateMacro := func(value, upper int) bool {
+		return value >= 0 && value <= upper
+	}
+	if !validateMacro(calories, 3000) || !validateMacro(protein, 300) || !validateMacro(carbs, 400) || !validateMacro(fats, 200) {
+		http.Redirect(w, r, "/admin/nutrition?error=Проверьте%20значения%20КБЖУ", http.StatusSeeOther)
+		return
+	}
+
+	created := false
+	mealID := ""
+	category := nutritionSlotLabel(slot)
+	for i := 0; i < 5; i++ {
+		candidateID := s.generateNutritionCustomMealID()
+		res, err := s.DB.Exec(
+			`insert into nutrition_custom_meals (
+			    meal_id, name, description, category, calories, protein, carbs, fats, created_by, updated_at
+			  )
+			  values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+			  on conflict (meal_id) do nothing`,
+			candidateID,
+			name,
+			description,
+			category,
+			calories,
+			protein,
+			carbs,
+			fats,
+			admin.ID,
+		)
+		if err != nil {
+			http.Redirect(w, r, "/admin/nutrition?error=Не%20удалось%20сохранить%20блюдо", http.StatusSeeOther)
+			return
+		}
+		affected, _ := res.RowsAffected()
+		if affected > 0 {
+			created = true
+			mealID = candidateID
+			break
+		}
+	}
+
+	if !created {
+		http.Redirect(w, r, "/admin/nutrition?error=Не%20удалось%20создать%20уникальный%20ID%20блюда", http.StatusSeeOther)
+		return
+	}
+
+	s.logNutritionAudit(
+		admin,
+		"admin_meal_created",
+		"meal_catalog",
+		mealID,
+		"",
+		strings.TrimSpace(admin.Department),
+		map[string]any{
+			"name":       name,
+			"category":   category,
+			"calories":   calories,
+			"protein":    protein,
+			"carbs":      carbs,
+			"fats":       fats,
+			"created_by": admin.ID,
+		},
+	)
+
+	http.Redirect(w, r, "/admin/nutrition?success="+url.QueryEscape("Новое блюдо добавлено в библиотеку"), http.StatusSeeOther)
 }
 
 func (s *Site) adminNutritionRedemptionUse(w http.ResponseWriter, r *http.Request) {

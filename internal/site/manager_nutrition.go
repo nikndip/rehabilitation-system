@@ -674,7 +674,7 @@ func (s *Site) loadNutritionManagerRewardRequestNotifications(managerID string, 
 		}
 		reason := "Новая заявка на поощрение: " + employeeName
 		if strings.TrimSpace(employeeID) != "" {
-			reason += " (ID " + employeeID + ")"
+			reason += " (табельный номер " + employeeID + ")"
 		}
 		reason += " · " + rewardTitle
 		entries = append(entries, notificationHistoryEntry{When: createdAt, Reason: reason})

@@ -342,7 +342,7 @@ func (s *Site) nutritionMealsPage(w http.ResponseWriter, r *http.Request) {
 		category = nutritionSlotLabel(selectedSlot)
 	}
 	returnTo := nutritionSafeReturnPath(r.URL.Query().Get("return_to"))
-	cards := nutritionMealLibrary()
+	cards := s.nutritionMealCatalog()
 	rules := s.nutritionDietRulesForUser(user.ID)
 
 	filtered := make([]nutritionMealCard, 0, len(cards))
@@ -388,7 +388,7 @@ func (s *Site) nutritionMealAssign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mealID := strings.TrimSpace(chi.URLParam(r, "id"))
-	meal, ok := nutritionMealByID(mealID)
+	meal, ok := s.nutritionMealByID(mealID)
 	if !ok {
 		http.Redirect(w, r, nutritionMealsRedirectURL(r.FormValue("return_q"), r.FormValue("return_category"), r.FormValue("day"), "", "Блюдо не найдено", r.FormValue("target_slot"), r.FormValue("return_to")), http.StatusSeeOther)
 		return
@@ -543,7 +543,7 @@ func (s *Site) nutritionPlanMealSmartReplace(w http.ResponseWriter, r *http.Requ
 
 	replacement, reason := s.nutritionSmartReplacementForUser(user.ID, slot.toMealCard(), slotKey)
 	if replacement == nil {
-		replacement = nutritionFirstAllowedMealForSlot(slotKey, s.nutritionDietRulesForUser(user.ID))
+		replacement = nutritionFirstAllowedMealForSlotFromCatalog(slotKey, s.nutritionDietRulesForUser(user.ID), s.nutritionMealCatalog())
 		reason = "Подобран ближайший допустимый вариант по ограничениям анкеты."
 	}
 	if replacement == nil {
@@ -766,7 +766,7 @@ func (s *Site) buildNutritionPlan(userID string, now time.Time) []nutritionPlanD
 	assignments := s.loadNutritionMealAssignments(userID, weekStart)
 	rules := s.nutritionDietRulesForUser(userID)
 	reminderSettings := s.loadNutritionReminderSettings(userID)
-	applyNutritionAssignments(planDays, assignments, now, rules, reminderSettings)
+	applyNutritionAssignments(planDays, assignments, now, rules, reminderSettings, s.nutritionMealCatalog())
 	hydrationLogs := s.loadNutritionHydrationLogs(userID, weekStart)
 	applyNutritionHydrationReminders(planDays, hydrationLogs, now, reminderSettings)
 	for i := range planDays {
@@ -1284,7 +1284,7 @@ func (s *Site) loadNutritionMealAssignments(userID string, weekStart time.Time) 
 		if normalizedDayKey == "" || normalizedSlot == "" {
 			continue
 		}
-		card, ok := nutritionMealByID(mealID)
+		card, ok := s.nutritionMealByID(mealID)
 		if !ok {
 			card = nutritionMealCard{
 				ID:          mealID,
@@ -1338,7 +1338,7 @@ func (s *Site) loadNutritionMealAssignmentsLegacy(userID string) map[string]map[
 		if normalizeNutritionDayKey(dayKey) == "" || normalizeNutritionSlotKey(slot) == "" {
 			continue
 		}
-		card, ok := nutritionMealByID(mealID)
+		card, ok := s.nutritionMealByID(mealID)
 		if !ok {
 			card = nutritionMealCard{ID: mealID, Name: mealName, Category: nutritionCategoryBySlot(slot), Calories: calories, Protein: protein, Carbs: carbs, Fats: fats}
 		}
@@ -1357,6 +1357,7 @@ func applyNutritionAssignments(
 	now time.Time,
 	rules nutritionDietRules,
 	reminderSettings nutritionReminderSettings,
+	mealCatalog []nutritionMealCard,
 ) {
 	for i := range planDays {
 		completedSlots := 0
@@ -1382,9 +1383,9 @@ func applyNutritionAssignments(
 			}
 
 			if slot.Status != "completed" && !nutritionMealAllowed(slot.toMealCard(), rules) {
-				replacement, _ := nutritionSmartReplacementWithRules(slot.toMealCard(), slot.SlotKey, rules)
+				replacement, _ := nutritionSmartReplacementWithRulesFromCatalog(slot.toMealCard(), slot.SlotKey, rules, mealCatalog)
 				if replacement == nil {
-					replacement = nutritionFirstAllowedMealForSlot(slot.SlotKey, rules)
+					replacement = nutritionFirstAllowedMealForSlotFromCatalog(slot.SlotKey, rules, mealCatalog)
 				}
 				if replacement != nil {
 					slot.MealID = replacement.ID
@@ -1397,7 +1398,7 @@ func applyNutritionAssignments(
 			}
 
 			if slot.Status == "skipped" {
-				if replacement, reason := nutritionSmartReplacementWithRules(slot.toMealCard(), slot.SlotKey, rules); replacement != nil {
+				if replacement, reason := nutritionSmartReplacementWithRulesFromCatalog(slot.toMealCard(), slot.SlotKey, rules, mealCatalog); replacement != nil {
 					slot.SuggestedMeal = replacement
 					slot.SuggestedReason = reason
 				}
@@ -2429,15 +2430,12 @@ func (s *Site) loadNutritionProfileLeaderboard(userID string) nutritionProfileLe
 	var rank int
 	var points int
 	err := s.DB.QueryRow(
-		`with ranked as (
+		`with participants as (
 		   select u.id,
+		          u.name,
 		          coalesce(up.points_balance, 0) as points,
-		          row_number() over (
-		            order by coalesce(up.points_balance, 0) desc,
-		                     coalesce(nd.days_completed, 0) desc,
-		                     coalesce(nm.completed_slots, 0) desc,
-		                     u.name
-		          ) as rank
+		          coalesce(nd.days_completed, 0) as days_completed,
+		          coalesce(nm.completed_slots, 0) as completed_slots
 		   from users u
 		   left join user_points up on up.user_id = u.id
 		   left join (
@@ -2450,7 +2448,18 @@ func (s *Site) loadNutritionProfileLeaderboard(userID string) nutritionProfileLe
 		     from nutrition_plan_meals
 		     group by user_id
 		   ) nm on nm.user_id = u.id
-		   where u.role = 'employee'
+		   where u.role in ('employee', 'manager') or u.id = $1
+		 ),
+		 ranked as (
+		   select u.id,
+		          u.points,
+		          row_number() over (
+		            order by u.points desc,
+		                     u.days_completed desc,
+		                     u.completed_slots desc,
+		                     u.name
+		          ) as rank
+		   from participants u
 		 )
 		 select rank, points
 		 from ranked
@@ -2465,16 +2474,12 @@ func (s *Site) loadNutritionProfileLeaderboard(userID string) nutritionProfileLe
 	view.Points = points
 
 	rows, err := s.DB.Query(
-		`with ranked as (
+		`with participants as (
 		   select u.id,
 		          u.name,
 		          coalesce(up.points_balance, 0) as points,
-		          row_number() over (
-		            order by coalesce(up.points_balance, 0) desc,
-		                     coalesce(nd.days_completed, 0) desc,
-		                     coalesce(nm.completed_slots, 0) desc,
-		                     u.name
-		          ) as rank
+		          coalesce(nd.days_completed, 0) as days_completed,
+		          coalesce(nm.completed_slots, 0) as completed_slots
 		   from users u
 		   left join user_points up on up.user_id = u.id
 		   left join (
@@ -2487,12 +2492,25 @@ func (s *Site) loadNutritionProfileLeaderboard(userID string) nutritionProfileLe
 		     from nutrition_plan_meals
 		     group by user_id
 		   ) nm on nm.user_id = u.id
-		   where u.role = 'employee'
+		   where u.role in ('employee', 'manager') or u.id = $1
+		 ),
+		 ranked as (
+		   select u.id,
+		          u.name,
+		          u.points,
+		          row_number() over (
+		            order by u.points desc,
+		                     u.days_completed desc,
+		                     u.completed_slots desc,
+		                     u.name
+		          ) as rank
+		   from participants u
 		 )
 		 select id, name, points, rank
 		 from ranked
-		 where rank between $1 and $2
+		 where rank between $2 and $3
 		 order by rank`,
+		userID,
 		max(1, rank-2),
 		rank+2,
 	)

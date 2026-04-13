@@ -5,6 +5,7 @@
     <div class="page-subtitle">Просмотр баланса баллов и аудит операций по сотрудникам.</div>
   </div>
   <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+    <a class="button secondary" href="/admin/nutrition/users">Сотрудники</a>
     <a class="button secondary" href="/admin/nutrition/achievements">Достижения</a>
     <a class="button secondary" href="/admin/nutrition/support">Поддержка</a>
     <a class="button secondary" href="/admin/nutrition/audit">Аудит</a>
@@ -40,7 +41,7 @@
     <tbody>
       {{ range .Employees }}
         <tr>
-          <td>{{ .Name }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ .Name }} <span class="muted">(табельный номер {{ .EmployeeID }})</span></td>
           <td>{{ if .CorporateEmail }}{{ .CorporateEmail }}{{ else }}—{{ end }}</td>
           <td>{{ if .Department }}{{ .Department }}{{ else }}—{{ end }}</td>
           <td><strong>{{ .Points }}</strong></td>
@@ -76,7 +77,7 @@
       {{ range .Ledger }}
         <tr>
           <td>{{ .CreatedAt }}</td>
-          <td>{{ .UserName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ .UserName }} <span class="muted">(табельный номер {{ .EmployeeID }})</span></td>
           <td>
             {{ if ge .Change 0 }}
               <span class="badge success">+{{ .Change }}</span>

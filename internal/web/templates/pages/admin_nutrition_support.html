@@ -5,6 +5,7 @@
     <div class="page-subtitle">Список обращений пользователей и контроль статусов поддержки.</div>
   </div>
   <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+    <a class="button secondary" href="/admin/nutrition/users">Сотрудники</a>
     <a class="button secondary" href="/admin/nutrition">К панели питания</a>
     <a class="button secondary" href="/admin/nutrition/points">Баллы</a>
     <a class="button secondary" href="/admin/nutrition/audit">Аудит</a>
@@ -38,7 +39,7 @@
         <tr>
           <td>
             <strong>{{ .EmployeeName }}</strong><br />
-            <span class="muted">ID {{ .EmployeeID }} · {{ .EmployeeDept }}</span>
+            <span class="muted">Табельный номер {{ .EmployeeID }} · {{ .EmployeeDept }}</span>
           </td>
           <td>{{ .Subject }}</td>
           <td>

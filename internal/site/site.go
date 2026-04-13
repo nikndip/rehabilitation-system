@@ -47,79 +47,90 @@ func (s *Site) Router() chi.Router {
 
 	r.Get("/login", s.loginPage)
 	r.Post("/login", s.loginSubmit)
-	r.Get("/register", s.registerPage)
-	r.Post("/register", s.registerSubmit)
+	r.Get("/password/forgot", s.forgotPasswordPage)
+	r.Post("/password/forgot", s.forgotPasswordSubmit)
 	r.Post("/logout", s.logout)
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(s.Sessions.RequireAuth)
-		pr.Post("/notifications/clear", s.notificationsClear)
-		pr.Get("/", s.nutritionDashboardPage)
-		pr.Route("/nutrition", func(nr chi.Router) {
-			nr.Get("/", s.nutritionDashboardPage)
-			nr.Get("/plan", s.nutritionPlanPage)
-			nr.Post("/plan/{day}/{slot}/complete", s.nutritionPlanMealComplete)
-			nr.Post("/plan/{day}/{slot}/skip", s.nutritionPlanMealSkip)
-			nr.Post("/plan/{day}/{slot}/smart-replace", s.nutritionPlanMealSmartReplace)
-			nr.Post("/plan/hydration/{day}/{key}/complete", s.nutritionHydrationComplete)
-			nr.Post("/plan/hydration/{day}/{key}/clear", s.nutritionHydrationClear)
-			nr.Get("/leaderboard", s.nutritionLeaderboardPage)
-			nr.Get("/rewards", s.nutritionRewardsPage)
-			nr.Post("/rewards/{id}/redeem", s.nutritionRewardRedeem)
-			nr.Get("/achievements", s.nutritionAchievementsPage)
-			nr.Get("/meals", s.nutritionMealsPage)
-			nr.Post("/meals/{id}/assign", s.nutritionMealAssign)
-			nr.Get("/questionnaire", s.nutritionQuestionnairePage)
-			nr.Post("/questionnaire", s.nutritionQuestionnaireSubmit)
-			nr.Get("/profile", s.nutritionProfilePage)
-			nr.Get("/instructions/employee", s.nutritionInstructionEmployeePage)
-			nr.Get("/instructions/admin", s.nutritionInstructionAdminPage)
-			nr.Get("/instructions/manager", s.nutritionInstructionManagerPage)
-			nr.Post("/profile/reminders", s.nutritionProfileReminderSettingsUpdate)
-			nr.Post("/profile/redemptions/{id}/use", s.nutritionRewardUse)
-			nr.Get("/support", s.nutritionSupportPage)
-			nr.Post("/support", s.nutritionSupportCreate)
-			nr.Get("/support/{id}", s.nutritionSupportThreadPage)
-			nr.Post("/support/{id}/messages", s.nutritionSupportMessageCreate)
-			nr.Post("/support/{id}/close", s.nutritionSupportClose)
-		})
+		pr.Get("/password/change-temporary", s.temporaryPasswordPage)
+		pr.Post("/password/change-temporary", s.temporaryPasswordSubmit)
 
-		pr.Route("/admin", func(ar chi.Router) {
-			ar.Use(s.requireRoles("admin"))
-			ar.Get("/", func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, "/admin/nutrition", http.StatusSeeOther)
+		pr.Group(func(ppr chi.Router) {
+			ppr.Use(s.requirePermanentPassword)
+			ppr.Post("/notifications/clear", s.notificationsClear)
+			ppr.Get("/", s.nutritionDashboardPage)
+			ppr.Route("/nutrition", func(nr chi.Router) {
+				nr.Get("/", s.nutritionDashboardPage)
+				nr.Get("/plan", s.nutritionPlanPage)
+				nr.Post("/plan/{day}/{slot}/complete", s.nutritionPlanMealComplete)
+				nr.Post("/plan/{day}/{slot}/skip", s.nutritionPlanMealSkip)
+				nr.Post("/plan/{day}/{slot}/smart-replace", s.nutritionPlanMealSmartReplace)
+				nr.Post("/plan/hydration/{day}/{key}/complete", s.nutritionHydrationComplete)
+				nr.Post("/plan/hydration/{day}/{key}/clear", s.nutritionHydrationClear)
+				nr.Get("/leaderboard", s.nutritionLeaderboardPage)
+				nr.Get("/rewards", s.nutritionRewardsPage)
+				nr.Post("/rewards/{id}/redeem", s.nutritionRewardRedeem)
+				nr.Get("/achievements", s.nutritionAchievementsPage)
+				nr.Get("/meals", s.nutritionMealsPage)
+				nr.Post("/meals/{id}/assign", s.nutritionMealAssign)
+				nr.Get("/questionnaire", s.nutritionQuestionnairePage)
+				nr.Post("/questionnaire", s.nutritionQuestionnaireSubmit)
+				nr.Get("/profile", s.nutritionProfilePage)
+				nr.Get("/instructions/employee", s.nutritionInstructionEmployeePage)
+				nr.Get("/instructions/admin", s.nutritionInstructionAdminPage)
+				nr.Get("/instructions/manager", s.nutritionInstructionManagerPage)
+				nr.Post("/profile/reminders", s.nutritionProfileReminderSettingsUpdate)
+				nr.Post("/profile/redemptions/{id}/use", s.nutritionRewardUse)
+				nr.Get("/support", s.nutritionSupportPage)
+				nr.Post("/support", s.nutritionSupportCreate)
+				nr.Get("/support/{id}", s.nutritionSupportThreadPage)
+				nr.Post("/support/{id}/messages", s.nutritionSupportMessageCreate)
+				nr.Post("/support/{id}/close", s.nutritionSupportClose)
 			})
-			ar.Get("/nutrition", s.adminNutritionDashboard)
-			ar.Get("/nutrition/audit", s.adminNutritionAuditPage)
-			ar.Get("/nutrition/achievements", s.adminNutritionAchievementsPage)
-			ar.Post("/nutrition/achievements", s.adminNutritionAchievementCreate)
-			ar.Post("/nutrition/achievements/{id}/update", s.adminNutritionAchievementUpdate)
-			ar.Post("/nutrition/achievements/{id}/delete", s.adminNutritionAchievementDelete)
-			ar.Get("/nutrition/points", s.adminNutritionPointsPage)
-			ar.Get("/nutrition/support", s.adminNutritionSupportPage)
-			ar.Get("/nutrition/support/{id}", s.adminNutritionSupportThreadPage)
-			ar.Post("/nutrition/support/{id}/messages", s.adminNutritionSupportMessageCreate)
-			ar.Post("/nutrition/support/{id}/status", s.adminNutritionSupportStatusUpdate)
-			ar.Get("/nutrition/employees/{id}", s.adminNutritionEmployeePage)
-			ar.Post("/nutrition/employees/{id}/email", s.adminNutritionEmployeeEmailUpdate)
-			ar.Post("/nutrition/employees/{id}/reminders", s.adminNutritionEmployeeReminderUpdate)
-			ar.Post("/nutrition/employees/{id}/questionnaire", s.adminNutritionEmployeeQuestionnaireUpdate)
-			ar.Post("/nutrition/employees/{id}/plan/assign", s.adminNutritionEmployeePlanAssign)
-		})
 
-		pr.Route("/manager", func(mr chi.Router) {
-			mr.Use(s.requireRoles("manager"))
-			mr.Get("/", func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, "/manager/nutrition", http.StatusSeeOther)
+			ppr.Route("/admin", func(ar chi.Router) {
+				ar.Use(s.requireRoles("admin"))
+				ar.Get("/", func(w http.ResponseWriter, r *http.Request) {
+					http.Redirect(w, r, "/admin/nutrition", http.StatusSeeOther)
+				})
+				ar.Get("/nutrition", s.adminNutritionDashboard)
+				ar.Post("/nutrition/meals", s.adminNutritionMealCreate)
+				ar.Get("/nutrition/users", s.adminNutritionUsersPage)
+				ar.Post("/nutrition/users", s.adminNutritionUserCreate)
+				ar.Post("/nutrition/users/{id}/delete", s.adminNutritionUserDelete)
+				ar.Post("/nutrition/password-resets/{id}/temporary-password", s.adminNutritionPasswordResetIssueTemp)
+				ar.Get("/nutrition/audit", s.adminNutritionAuditPage)
+				ar.Get("/nutrition/achievements", s.adminNutritionAchievementsPage)
+				ar.Post("/nutrition/achievements", s.adminNutritionAchievementCreate)
+				ar.Post("/nutrition/achievements/{id}/update", s.adminNutritionAchievementUpdate)
+				ar.Post("/nutrition/achievements/{id}/delete", s.adminNutritionAchievementDelete)
+				ar.Get("/nutrition/points", s.adminNutritionPointsPage)
+				ar.Get("/nutrition/support", s.adminNutritionSupportPage)
+				ar.Get("/nutrition/support/{id}", s.adminNutritionSupportThreadPage)
+				ar.Post("/nutrition/support/{id}/messages", s.adminNutritionSupportMessageCreate)
+				ar.Post("/nutrition/support/{id}/status", s.adminNutritionSupportStatusUpdate)
+				ar.Get("/nutrition/employees/{id}", s.adminNutritionEmployeePage)
+				ar.Post("/nutrition/employees/{id}/email", s.adminNutritionEmployeeEmailUpdate)
+				ar.Post("/nutrition/employees/{id}/reminders", s.adminNutritionEmployeeReminderUpdate)
+				ar.Post("/nutrition/employees/{id}/questionnaire", s.adminNutritionEmployeeQuestionnaireUpdate)
+				ar.Post("/nutrition/employees/{id}/plan/assign", s.adminNutritionEmployeePlanAssign)
 			})
-			mr.Get("/nutrition", s.managerNutritionDashboardPage)
-			mr.Get("/nutrition/points", s.managerNutritionPointsPage)
-			mr.Post("/nutrition/points/award", s.managerNutritionPointsAward)
-			mr.Get("/nutrition/support", s.managerNutritionSupportPage)
-			mr.Get("/nutrition/support/{id}", s.managerNutritionSupportThreadPage)
-			mr.Post("/nutrition/support/{id}/messages", s.managerNutritionSupportMessageCreate)
-			mr.Post("/nutrition/reward-requests/{id}/approve", s.managerNutritionRewardApprove)
-			mr.Post("/nutrition/reward-requests/{id}/reject", s.managerNutritionRewardReject)
+
+			ppr.Route("/manager", func(mr chi.Router) {
+				mr.Use(s.requireRoles("manager"))
+				mr.Get("/", func(w http.ResponseWriter, r *http.Request) {
+					http.Redirect(w, r, "/manager/nutrition", http.StatusSeeOther)
+				})
+				mr.Get("/nutrition", s.managerNutritionDashboardPage)
+				mr.Get("/nutrition/points", s.managerNutritionPointsPage)
+				mr.Post("/nutrition/points/award", s.managerNutritionPointsAward)
+				mr.Get("/nutrition/support", s.managerNutritionSupportPage)
+				mr.Get("/nutrition/support/{id}", s.managerNutritionSupportThreadPage)
+				mr.Post("/nutrition/support/{id}/messages", s.managerNutritionSupportMessageCreate)
+				mr.Post("/nutrition/reward-requests/{id}/approve", s.managerNutritionRewardApprove)
+				mr.Post("/nutrition/reward-requests/{id}/reject", s.managerNutritionRewardReject)
+			})
 		})
 	})
 
@@ -187,6 +198,7 @@ func (s *Site) loadNotifications(userID string) []planChangeView {
 		entries = append(entries, s.loadNutritionAdminSupportNotifications(clearedAt)...)
 		entries = append(entries, s.loadNutritionAdminRewardSLANotifications(clearedAt, now)...)
 		entries = append(entries, s.loadNutritionAdminSupportSLANotifications(clearedAt, now)...)
+		entries = append(entries, s.loadAdminPasswordResetNotifications(clearedAt)...)
 	}
 	if strings.EqualFold(strings.TrimSpace(userRole), "manager") {
 		entries = append(entries, s.loadNutritionManagerRewardRequestNotifications(userID, clearedAt)...)
@@ -233,12 +245,27 @@ func (s *Site) requireRoles(roles ...string) func(http.Handler) http.Handler {
 	}
 }
 
+func (s *Site) requirePermanentPassword(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := middleware.UserFromContext(r.Context())
+		if user == nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		if user.PasswordTemp {
+			http.Redirect(w, r, "/password/change-temporary", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Site) loginPage(w http.ResponseWriter, r *http.Request) {
 	data := s.baseData(r, "Вход", "")
 	data["Module"] = "nutrition"
 	data["HideNav"] = true
 	data["Error"] = r.URL.Query().Get("error")
-	data["AllowRegister"] = s.Config.AllowSelfRegister
+	data["Success"] = r.URL.Query().Get("success")
 	s.render(w, "login", data)
 }
 
@@ -257,10 +284,13 @@ func (s *Site) loginSubmit(w http.ResponseWriter, r *http.Request) {
 
 	var userID string
 	var hash string
+	var passwordTemp bool
 	err := s.DB.QueryRow(
-		`select id, password_hash from users where employee_id = $1`,
+		`select id, password_hash, coalesce(password_temp, false)
+		 from users
+		 where employee_id = $1`,
 		employeeID,
-	).Scan(&userID, &hash)
+	).Scan(&userID, &hash, &passwordTemp)
 	if err != nil {
 		http.Redirect(w, r, "/login?error=Неверные%20данные", http.StatusSeeOther)
 		return
@@ -278,68 +308,8 @@ func (s *Site) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-func (s *Site) registerPage(w http.ResponseWriter, r *http.Request) {
-	if !s.Config.AllowSelfRegister {
-		http.Error(w, "Регистрация отключена", http.StatusForbidden)
-		return
-	}
-	data := s.baseData(r, "Регистрация", "")
-	data["Module"] = "nutrition"
-	data["HideNav"] = true
-	data["Error"] = r.URL.Query().Get("error")
-	s.render(w, "register", data)
-}
-
-func (s *Site) registerSubmit(w http.ResponseWriter, r *http.Request) {
-	if !s.Config.AllowSelfRegister {
-		http.Error(w, "Регистрация отключена", http.StatusForbidden)
-		return
-	}
-
-	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/register?error=Некорректные%20данные", http.StatusSeeOther)
-		return
-	}
-
-	name := strings.TrimSpace(r.FormValue("name"))
-	employeeID := strings.TrimSpace(r.FormValue("employee_id"))
-	department := strings.TrimSpace(r.FormValue("department"))
-	position := strings.TrimSpace(r.FormValue("position"))
-	password := r.FormValue("password")
-
-	if name == "" || employeeID == "" || password == "" {
-		http.Redirect(w, r, "/register?error=Заполните%20обязательные%20поля", http.StatusSeeOther)
-		return
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		http.Redirect(w, r, "/register?error=Ошибка%20пароля", http.StatusSeeOther)
-		return
-	}
-
-	var userID string
-	err = s.DB.QueryRow(
-		`insert into users (name, employee_id, password_hash, role, department, position)
-     values ($1, $2, $3, 'employee', $4, $5)
-     returning id`,
-		name,
-		employeeID,
-		string(hash),
-		nullIfEmpty(department),
-		nullIfEmpty(position),
-	).Scan(&userID)
-	if err != nil {
-		http.Redirect(w, r, "/register?error=ID-сотрудника%20уже%20занят", http.StatusSeeOther)
-		return
-	}
-
-	_ = db.EnsureUserDefaults(s.DB, userID)
-	if err := s.createSession(w, userID); err != nil {
-		http.Redirect(w, r, "/register?error=Ошибка%20сессии", http.StatusSeeOther)
+	if passwordTemp {
+		http.Redirect(w, r, "/password/change-temporary", http.StatusSeeOther)
 		return
 	}
 

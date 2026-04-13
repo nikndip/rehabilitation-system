@@ -25,13 +25,13 @@ drop table if exists questionnaire_responses cascade;
 drop table if exists medical_info cascade;
 drop table if exists incentive_awards cascade;
 drop table if exists password_reset_requests cascade;
-alter table if exists users drop column if exists password_temp;
 
 create table if not exists users (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
   employee_id text not null unique,
   password_hash text not null,
+  password_temp boolean not null default false,
   role text not null default 'employee',
   department text,
   position text,
@@ -62,11 +62,35 @@ create table if not exists sessions (
 );
 
 create index if not exists idx_sessions_token on sessions(token);
+create index if not exists idx_users_password_temp
+  on users(password_temp)
+  where password_temp = true;
 create index if not exists idx_user_profiles_notifications_cleared_at
   on user_profiles(notifications_cleared_at);
 create index if not exists idx_users_corporate_email_lower
   on users (lower(corporate_email))
   where corporate_email is not null and btrim(corporate_email) <> '';
+
+create table if not exists password_reset_requests (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(id) on delete cascade,
+  status text not null default 'pending',
+  requested_at timestamptz not null default now(),
+  processed_at timestamptz,
+  processed_by uuid references users(id) on delete set null,
+  temporary_password_set boolean not null default false,
+  temporary_password_set_at timestamptz,
+  note text not null default '',
+  check (status in ('pending', 'completed', 'rejected'))
+);
+
+create index if not exists idx_password_reset_requests_status_requested
+  on password_reset_requests(status, requested_at desc);
+create index if not exists idx_password_reset_requests_user_requested
+  on password_reset_requests(user_id, requested_at desc);
+create unique index if not exists idx_password_reset_requests_pending_user
+  on password_reset_requests(user_id)
+  where status = 'pending';
 
 create table if not exists nutrition_plan_meals (
   id uuid primary key default uuid_generate_v4(),
@@ -92,6 +116,29 @@ create table if not exists nutrition_plan_meals (
 
 create index if not exists idx_nutrition_plan_meals_user_day
   on nutrition_plan_meals(user_id, day_date);
+
+create table if not exists nutrition_custom_meals (
+  id uuid primary key default uuid_generate_v4(),
+  meal_id text not null unique,
+  name text not null,
+  description text not null default '',
+  category text not null,
+  calories int not null default 0,
+  protein int not null default 0,
+  carbs int not null default 0,
+  fats int not null default 0,
+  active boolean not null default true,
+  created_by uuid references users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (calories >= 0 and calories <= 3000),
+  check (protein >= 0 and protein <= 300),
+  check (carbs >= 0 and carbs <= 400),
+  check (fats >= 0 and fats <= 200)
+);
+
+create index if not exists idx_nutrition_custom_meals_active_category
+  on nutrition_custom_meals(active, category);
 
 create table if not exists nutrition_day_progress (
   user_id uuid not null references users(id) on delete cascade,
@@ -128,11 +175,95 @@ create table if not exists nutrition_reward_redemptions (
   points_cost int not null default 0,
   status text not null default 'issued',
   redeemed_at timestamptz not null default now(),
-  used_at timestamptz
+  used_at timestamptz,
+  requested_at timestamptz not null default now(),
+  reviewed_at timestamptz,
+  reviewed_by uuid references users(id) on delete set null,
+  manager_comment text not null default ''
 );
 
 create index if not exists idx_nutrition_reward_redemptions_user
   on nutrition_reward_redemptions(user_id, redeemed_at desc);
+create index if not exists idx_nutrition_reward_redemptions_status_requested
+  on nutrition_reward_redemptions(status, requested_at desc);
+create index if not exists idx_nutrition_reward_redemptions_user_reward_status
+  on nutrition_reward_redemptions(user_id, reward_id, status);
+create index if not exists idx_nutrition_reward_redemptions_reviewed_by
+  on nutrition_reward_redemptions(reviewed_by, reviewed_at desc);
+
+create table if not exists nutrition_reward_limits (
+  reward_id text primary key,
+  max_per_user int,
+  updated_at timestamptz not null default now(),
+  check (max_per_user is null or max_per_user > 0)
+);
+
+insert into nutrition_reward_limits (reward_id, max_per_user)
+values
+  ('nutri-1', 1),
+  ('nutri-2', 3),
+  ('nutri-5', 1),
+  ('nutri-8', 1)
+on conflict (reward_id)
+do update set max_per_user = excluded.max_per_user,
+              updated_at = now();
+
+create table if not exists support_tickets (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(id) on delete cascade,
+  subject text not null,
+  status text not null default 'open',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  last_message_at timestamptz not null default now(),
+  check (status in ('open', 'answered', 'closed'))
+);
+
+create index if not exists idx_support_tickets_user_updated
+  on support_tickets(user_id, updated_at desc);
+create index if not exists idx_support_tickets_status_updated
+  on support_tickets(status, updated_at desc);
+create index if not exists idx_support_tickets_last_message
+  on support_tickets(last_message_at desc);
+
+create table if not exists support_ticket_messages (
+  id uuid primary key default uuid_generate_v4(),
+  ticket_id uuid not null references support_tickets(id) on delete cascade,
+  sender_id uuid references users(id) on delete set null,
+  sender_role text not null default 'employee',
+  message text not null,
+  created_at timestamptz not null default now(),
+  check (sender_role in ('employee', 'admin', 'manager', 'system'))
+);
+
+create index if not exists idx_support_ticket_messages_ticket_created
+  on support_ticket_messages(ticket_id, created_at);
+
+create table if not exists nutrition_action_audit (
+  id uuid primary key default uuid_generate_v4(),
+  module text not null default 'nutrition',
+  action_type text not null,
+  entity_type text not null,
+  entity_id text not null default '',
+  actor_id uuid references users(id) on delete set null,
+  actor_role text not null default 'system',
+  actor_name text not null default '',
+  target_user_id uuid references users(id) on delete set null,
+  target_department text not null default '',
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_nutrition_action_audit_created
+  on nutrition_action_audit(created_at desc);
+create index if not exists idx_nutrition_action_audit_action
+  on nutrition_action_audit(action_type, created_at desc);
+create index if not exists idx_nutrition_action_audit_actor
+  on nutrition_action_audit(actor_id, created_at desc);
+create index if not exists idx_nutrition_action_audit_target_user
+  on nutrition_action_audit(target_user_id, created_at desc);
+create index if not exists idx_nutrition_action_audit_entity
+  on nutrition_action_audit(entity_type, entity_id);
 
 create table if not exists nutrition_events (
   id uuid primary key default uuid_generate_v4(),

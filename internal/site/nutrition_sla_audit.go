@@ -64,7 +64,7 @@ func (s *Site) logNutritionAudit(actor *models.User, actionType, entityType, ent
 		    actor_id, actor_role, actor_name,
 		    target_user_id, target_department, details
 		  )
-		  values ('nutrition', $1, $2, $3, $4, $5, $6, nullif($7, ''), $8, $9::jsonb)`,
+		  values ('nutrition', $1, $2, $3, $4, $5, $6, nullif($7, '')::uuid, $8, $9::jsonb)`,
 		actionType,
 		entityType,
 		strings.TrimSpace(entityID),
@@ -262,7 +262,7 @@ func (s *Site) loadNutritionManagerRewardSLANotifications(managerID string, clea
 		}
 		reason := "SLA по заявке на поощрение просрочен: " + employeeName
 		if strings.TrimSpace(employeeID) != "" {
-			reason += " (ID " + employeeID + ")"
+			reason += " (табельный номер " + employeeID + ")"
 		}
 		if strings.TrimSpace(rewardTitle) != "" {
 			reason += " · " + rewardTitle
@@ -305,7 +305,7 @@ func (s *Site) loadNutritionAdminRewardSLANotifications(clearedAt, now time.Time
 		}
 		reason := "Просрочена заявка на поощрение: " + employeeName
 		if strings.TrimSpace(employeeID) != "" {
-			reason += " (ID " + employeeID + ")"
+			reason += " (табельный номер " + employeeID + ")"
 		}
 		if strings.TrimSpace(rewardTitle) != "" {
 			reason += " · " + rewardTitle
@@ -347,7 +347,7 @@ func (s *Site) loadNutritionAdminSupportSLANotifications(clearedAt, now time.Tim
 		}
 		reason := "Просрочено обращение поддержки: " + employeeName
 		if strings.TrimSpace(employeeID) != "" {
-			reason += " (ID " + employeeID + ")"
+			reason += " (табельный номер " + employeeID + ")"
 		}
 		if strings.TrimSpace(subject) != "" {
 			reason += " · " + subject
@@ -396,7 +396,7 @@ func (s *Site) loadNutritionManagerSupportSLANotifications(managerID string, cle
 		}
 		reason := "SLA ответа по обращению просрочен: " + employeeName
 		if strings.TrimSpace(employeeID) != "" {
-			reason += " (ID " + employeeID + ")"
+			reason += " (табельный номер " + employeeID + ")"
 		}
 		if strings.TrimSpace(subject) != "" {
 			reason += " · " + subject

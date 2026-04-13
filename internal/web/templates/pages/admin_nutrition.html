@@ -5,6 +5,7 @@
     <div class="page-subtitle">Управление анкетами, достижениями, корпоративными контактами и поддержкой модуля питания.</div>
   </div>
   <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+    <a class="button secondary" href="/admin/nutrition/users">Сотрудники</a>
     <a class="button secondary" href="/admin/nutrition/achievements">Достижения</a>
     <a class="button secondary" href="/admin/nutrition/points">Баллы</a>
     <a class="button secondary" href="/admin/nutrition/support">Поддержка</a>
@@ -60,6 +61,10 @@
 </div>
 
 <div class="grid cols-2" style="margin-bottom: 24px;">
+  <a class="card softer" href="/admin/nutrition/users">
+    <div class="card-title">Все сотрудники</div>
+    <div class="muted" style="margin-top: 6px;">Единая вкладка пользователей, создание и удаление учётных записей.</div>
+  </a>
   <a class="card softer" href="/admin/nutrition/achievements">
     <div class="card-title">Управление достижениями</div>
     <div class="muted" style="margin-top: 6px;">Каталог достижений, метрики и просмотр прогресса сотрудников.</div>
@@ -76,6 +81,50 @@
     <div class="card-title">Централизованный аудит</div>
     <div class="muted" style="margin-top: 6px;">Все ключевые действия по заявкам, поддержке и баллам в едином журнале.</div>
   </a>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title">Добавление нового блюда в библиотеку</div>
+  </div>
+  <form class="form" method="post" action="/admin/nutrition/meals">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Название блюда</label>
+        <input name="name" maxlength="140" placeholder="Например, Курица с овощами" required />
+      </div>
+      <div class="form-group">
+        <label>Категория</label>
+        <select name="slot" required>
+          <option value="">Выберите категорию</option>
+          {{ range .MealSlotOptions }}
+            <option value="{{ .Key }}">{{ .Label }}</option>
+          {{ end }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Калории</label>
+        <input type="number" name="calories" min="0" max="3000" value="300" required />
+      </div>
+      <div class="form-group">
+        <label>Белки</label>
+        <input type="number" name="protein" min="0" max="300" value="20" required />
+      </div>
+      <div class="form-group">
+        <label>Углеводы</label>
+        <input type="number" name="carbs" min="0" max="400" value="30" required />
+      </div>
+      <div class="form-group">
+        <label>Жиры</label>
+        <input type="number" name="fats" min="0" max="200" value="10" required />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Описание</label>
+      <textarea name="description" rows="2" maxlength="500" placeholder="Краткое описание блюда для пользователей."></textarea>
+    </div>
+    <button class="button primary" type="submit">Добавить блюдо</button>
+  </form>
 </div>
 
 <div class="card" style="margin-bottom: 24px;">
@@ -101,7 +150,7 @@
         <tr>
           <td>
             <strong>{{ .Name }}</strong><br />
-            <span class="muted">ID {{ .EmployeeID }} · {{ .Department }}</span>
+            <span class="muted">Табельный номер {{ .EmployeeID }} · {{ .Department }}</span>
           </td>
           <td>{{ if .CorporateEmail }}{{ .CorporateEmail }}{{ else }}—{{ end }}</td>
           <td>{{ .NutritionGoal }}</td>
@@ -151,7 +200,7 @@
     <tbody>
       {{ range .IssuedRewards }}
         <tr>
-          <td>{{ .EmployeeName }} <span class="muted">(ID {{ .EmployeeID }})</span></td>
+          <td>{{ .EmployeeName }} <span class="muted">(табельный номер {{ .EmployeeID }})</span></td>
           <td>{{ .Title }}</td>
           <td>
             {{ if eq .Status "pending" }}

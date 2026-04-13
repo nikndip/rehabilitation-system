@@ -919,7 +919,7 @@ func (s *Site) loadNutritionAdminSupportNotifications(clearedAt time.Time) []not
 		}
 		reason := "Новое обращение в поддержку: " + employeeName
 		if strings.TrimSpace(employeeID) != "" {
-			reason += " (ID " + employeeID + ")"
+			reason += " (табельный номер " + employeeID + ")"
 		}
 		if strings.TrimSpace(subject) != "" {
 			reason += " · " + subject
@@ -962,7 +962,7 @@ func (s *Site) loadNutritionManagerSupportNotifications(managerID string, cleare
 		}
 		reason := "Новое обращение сотрудника отдела: " + employeeName
 		if strings.TrimSpace(employeeID) != "" {
-			reason += " (ID " + employeeID + ")"
+			reason += " (табельный номер " + employeeID + ")"
 		}
 		if strings.TrimSpace(subject) != "" {
 			reason += " · " + subject

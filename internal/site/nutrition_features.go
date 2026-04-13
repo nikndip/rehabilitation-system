@@ -397,8 +397,8 @@ func nutritionMealAllowed(meal nutritionMealCard, rules nutritionDietRules) bool
 	return true
 }
 
-func nutritionSmartReplacementWithRules(current nutritionMealCard, slotKey string, rules nutritionDietRules) (*nutritionMealCard, string) {
-	candidates := nutritionMealsBySlot(slotKey)
+func nutritionSmartReplacementWithRulesFromCatalog(current nutritionMealCard, slotKey string, rules nutritionDietRules, catalog []nutritionMealCard) (*nutritionMealCard, string) {
+	candidates := nutritionMealsBySlotFromCatalog(slotKey, catalog)
 	bestIdx := -1
 	bestScore := 1<<31 - 1
 	for idx, candidate := range candidates {
@@ -422,8 +422,12 @@ func nutritionSmartReplacementWithRules(current nutritionMealCard, slotKey strin
 	return &best, reason
 }
 
-func nutritionFirstAllowedMealForSlot(slotKey string, rules nutritionDietRules) *nutritionMealCard {
-	candidates := nutritionMealsBySlot(slotKey)
+func nutritionSmartReplacementWithRules(current nutritionMealCard, slotKey string, rules nutritionDietRules) (*nutritionMealCard, string) {
+	return nutritionSmartReplacementWithRulesFromCatalog(current, slotKey, rules, nutritionMealLibrary())
+}
+
+func nutritionFirstAllowedMealForSlotFromCatalog(slotKey string, rules nutritionDietRules, catalog []nutritionMealCard) *nutritionMealCard {
+	candidates := nutritionMealsBySlotFromCatalog(slotKey, catalog)
 	for i := range candidates {
 		if nutritionMealAllowed(candidates[i], rules) {
 			item := candidates[i]
@@ -433,9 +437,13 @@ func nutritionFirstAllowedMealForSlot(slotKey string, rules nutritionDietRules) 
 	return nil
 }
 
+func nutritionFirstAllowedMealForSlot(slotKey string, rules nutritionDietRules) *nutritionMealCard {
+	return nutritionFirstAllowedMealForSlotFromCatalog(slotKey, rules, nutritionMealLibrary())
+}
+
 func (s *Site) nutritionSmartReplacementForUser(userID string, current nutritionMealCard, slotKey string) (*nutritionMealCard, string) {
 	rules := s.nutritionDietRulesForUser(userID)
-	return nutritionSmartReplacementWithRules(current, slotKey, rules)
+	return nutritionSmartReplacementWithRulesFromCatalog(current, slotKey, rules, s.nutritionMealCatalog())
 }
 
 func nutritionUniqueStrings(values []string) []string {
@@ -963,7 +971,7 @@ func (s *Site) loadNutritionAdminQuestionnaireNotifications(clearedAt time.Time)
 		}
 		reason := "Сотрудник " + name + " прошел опрос питания"
 		if strings.TrimSpace(employeeID) != "" {
-			reason += " (ID " + employeeID + ")"
+			reason += " (табельный номер " + employeeID + ")"
 		}
 		entries = append(entries, notificationHistoryEntry{When: createdAt, Reason: reason})
 	}

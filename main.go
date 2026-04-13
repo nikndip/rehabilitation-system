@@ -27,6 +27,9 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+	if err := db.EnsureNutritionCompatibility(database); err != nil {
+		log.Fatal(err)
+	}
 
 	if cfg.SeedData {
 		if err := db.Seed(database); err != nil {
