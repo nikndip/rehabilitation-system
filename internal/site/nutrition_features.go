@@ -609,6 +609,8 @@ func normalizeNutritionHydrationStatus(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "completed":
 		return "completed"
+	case "completed_post_factum":
+		return "completed_post_factum"
 	case "cleared":
 		return "cleared"
 	default:
@@ -623,6 +625,9 @@ func nutritionHydrationReminderState(dayDate time.Time, plannedTime, status stri
 	}
 	if status == "completed" {
 		return "Выполнено", "Прием воды закрыт"
+	}
+	if status == "completed_post_factum" {
+		return "Post factum", "Отмечено после даты плана, баллы не начисляются"
 	}
 	if status == "cleared" {
 		return "Очищено", "Напоминание очищено вручную"
@@ -740,19 +745,30 @@ func (s *Site) nutritionHydrationComplete(w http.ResponseWriter, r *http.Request
 		http.Redirect(w, r, "/nutrition/plan?error=Некорректный%20день", http.StatusSeeOther)
 		return
 	}
+	today := nutritionDateOnly(time.Now())
+	if dayDate.After(today) {
+		http.Redirect(w, r, "/nutrition/plan?error="+url.QueryEscape("Нельзя отмечать прием воды заранее"), http.StatusSeeOther)
+		return
+	}
+	isPostFactum := dayDate.Before(today)
+	statusToSave := "completed"
+	if isPostFactum {
+		statusToSave = "completed_post_factum"
+	}
 
 	_, err := s.DB.Exec(
 		`insert into nutrition_hydration_logs (user_id, day_date, day_key, reminder_key, status, completed_at, updated_at)
-		 values ($1, $2, $3, $4, 'completed', now(), now())
+		 values ($1, $2, $3, $4, $5, now(), now())
 		 on conflict (user_id, day_date, reminder_key)
 		 do update set day_key = excluded.day_key,
-		               status = 'completed',
+		               status = excluded.status,
 		               completed_at = now(),
 		               updated_at = now()`,
 		user.ID,
 		dayDate,
 		dayKey,
 		reminderKey,
+		statusToSave,
 	)
 	if err != nil {
 		http.Redirect(w, r, "/nutrition/plan?error=Не%20удалось%20обновить%20прием%20воды", http.StatusSeeOther)
@@ -760,15 +776,26 @@ func (s *Site) nutritionHydrationComplete(w http.ResponseWriter, r *http.Request
 	}
 
 	timeLabel := nutritionHydrationReminderTime(reminderKey)
-	s.insertNutritionEvent(user.ID, "Прием воды "+timeLabel+" выполнен.")
-	s.insertNutritionDayEvent(user.ID, dayKey, "hydration_completed", reminderKey, dayDate, map[string]any{
+	eventType := "hydration_completed"
+	eventMessage := "Прием воды " + timeLabel + " выполнен."
+	if isPostFactum {
+		eventType = "hydration_completed_post_factum"
+		eventMessage = "Post factum: прием воды " + timeLabel + " отмечен за " + dayDate.Format("02.01.2006") + "."
+	}
+	s.insertNutritionEvent(user.ID, eventMessage)
+	s.insertNutritionDayEvent(user.ID, dayKey, eventType, reminderKey, dayDate, map[string]any{
 		"reminder_time": timeLabel,
+		"post_factum":   isPostFactum,
 	})
 	if _, progressErr := s.refreshNutritionDayProgress(user.ID, dayKey, dayDate); progressErr != nil {
 		log.Printf("nutrition: refresh day progress after hydration complete failed user=%s day=%s: %v", user.ID, dayDate.Format("2006-01-02"), progressErr)
 	}
 	_, _ = s.refreshNutritionAchievements(user.ID)
-	http.Redirect(w, r, "/nutrition/plan?success="+url.QueryEscape("Прием воды "+timeLabel+" отмечен как выполненный"), http.StatusSeeOther)
+	success := "Прием воды " + timeLabel + " отмечен как выполненный"
+	if isPostFactum {
+		success = "Прием воды " + timeLabel + " отмечен post factum за " + dayDate.Format("02.01.2006") + " (без начисления баллов)"
+	}
+	http.Redirect(w, r, "/nutrition/plan?success="+url.QueryEscape(success), http.StatusSeeOther)
 }
 
 func (s *Site) nutritionHydrationClear(w http.ResponseWriter, r *http.Request) {
@@ -782,6 +809,10 @@ func (s *Site) nutritionHydrationClear(w http.ResponseWriter, r *http.Request) {
 	dayDate, ok := nutritionDayDate(nutritionWeekStart(time.Now()), dayKey)
 	if !ok {
 		http.Redirect(w, r, "/nutrition/plan?error=Некорректный%20день", http.StatusSeeOther)
+		return
+	}
+	if dayDate.After(nutritionDateOnly(time.Now())) {
+		http.Redirect(w, r, "/nutrition/plan?error="+url.QueryEscape("Нельзя изменять прием воды заранее"), http.StatusSeeOther)
 		return
 	}
 

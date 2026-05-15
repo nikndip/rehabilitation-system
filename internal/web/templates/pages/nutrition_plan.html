@@ -79,7 +79,7 @@
                   <strong>{{ .Meal.SlotLabel }}</strong>
                   <span class="badge">{{ .Meal.PlannedTime }}</span>
                   {{ if eq .Meal.Status "completed" }}
-                    <span class="badge success">Выполнено</span>
+                    <span class="badge success">{{ if .Meal.PostFactum }}Post factum{{ else }}Выполнено{{ end }}</span>
                   {{ else if eq .Meal.Status "skipped" }}
                     <span class="badge danger">Пропущено</span>
                   {{ else }}
@@ -99,7 +99,9 @@
               {{ if .Meal.CompletedAt }}
                 <div class="muted" style="margin-top: 4px;">
                   Отмечено в {{ .Meal.CompletedAt }}
-                  {{ if .Meal.CompletedOnTime }}
+                  {{ if .Meal.PostFactum }}
+                    (post factum, без начисления баллов)
+                  {{ else if .Meal.CompletedOnTime }}
                     (в рамках мягкого допуска)
                   {{ else }}
                     (после мягкого допуска)
@@ -116,7 +118,7 @@
                 <a class="button secondary" href="/nutrition/meals?day={{ $day.DayKey }}&slot={{ .Meal.SlotKey }}&category={{ urlquery .Meal.SlotLabel }}&return_to={{ urlquery "/nutrition/plan" }}">Выбрать другое</a>
                 <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .Meal.SlotKey }}/complete">
                   <button class="button {{ if eq .Meal.Status "completed" }}success{{ else }}primary{{ end }}" type="submit" {{ if eq .Meal.Status "completed" }}disabled{{ end }}>
-                    {{ if eq .Meal.Status "completed" }}Выполнено{{ else }}Поел{{ end }}
+                    {{ if eq .Meal.Status "completed" }}{{ if .Meal.PostFactum }}Post factum{{ else }}Выполнено{{ end }}{{ else }}Поел{{ end }}
                   </button>
                 </form>
                 <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .Meal.SlotKey }}/skip">
@@ -138,6 +140,8 @@
                   <span class="badge">{{ .Hydration.Time }}</span>
                   {{ if eq .Hydration.StatusCode "completed" }}
                     <span class="badge success">Выполнено</span>
+                  {{ else if eq .Hydration.StatusCode "completed_post_factum" }}
+                    <span class="badge success">Post factum</span>
                   {{ else if eq .Hydration.StatusCode "cleared" }}
                     <span class="badge warning">Очищено</span>
                   {{ else }}
@@ -151,8 +155,8 @@
               {{ end }}
               <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
                 <form method="post" action="/nutrition/plan/hydration/{{ $day.DayKey }}/{{ .Hydration.ReminderKey }}/complete">
-                  <button class="button {{ if eq .Hydration.StatusCode "completed" }}success{{ else }}primary{{ end }}" type="submit" {{ if eq .Hydration.StatusCode "completed" }}disabled{{ end }}>
-                    {{ if eq .Hydration.StatusCode "completed" }}Выполнено{{ else }}Выполнить{{ end }}
+                  <button class="button {{ if or (eq .Hydration.StatusCode "completed") (eq .Hydration.StatusCode "completed_post_factum") }}success{{ else }}primary{{ end }}" type="submit" {{ if or (eq .Hydration.StatusCode "completed") (eq .Hydration.StatusCode "completed_post_factum") }}disabled{{ end }}>
+                    {{ if eq .Hydration.StatusCode "completed" }}Выполнено{{ else if eq .Hydration.StatusCode "completed_post_factum" }}Post factum{{ else }}Выполнить{{ end }}
                   </button>
                 </form>
                 <form method="post" action="/nutrition/plan/hydration/{{ $day.DayKey }}/{{ .Hydration.ReminderKey }}/clear">

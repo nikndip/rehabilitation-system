@@ -101,6 +101,7 @@ type nutritionMealSlotView struct {
 	Carbs           int
 	Fats            int
 	Status          string
+	PostFactum      bool
 	CompletedAt     string
 	CompletedOnTime bool
 	ReminderStatus  string
@@ -245,11 +246,6 @@ func (s *Site) nutritionDashboardPage(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 	now := time.Now()
 	s.ensureNutritionMissedDayCompletionRewards(user.ID, now, 60)
-	weekLength := len(nutritionDayOptions())
-	s.ensureNutritionWeekRewards(user.ID, nutritionWeekStart(now), now)
-	if weekLength > 0 {
-		s.ensureNutritionWeekRewards(user.ID, nutritionWeekStart(now).AddDate(0, 0, -weekLength), now)
-	}
 	planDays := s.buildNutritionPlan(user.ID, now)
 
 	stats := nutritionDashboardStats{
@@ -305,11 +301,6 @@ func (s *Site) nutritionPlanPage(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 	now := time.Now()
 	s.ensureNutritionMissedDayCompletionRewards(user.ID, now, 60)
-	weekLength := len(nutritionDayOptions())
-	s.ensureNutritionWeekRewards(user.ID, nutritionWeekStart(now), now)
-	if weekLength > 0 {
-		s.ensureNutritionWeekRewards(user.ID, nutritionWeekStart(now).AddDate(0, 0, -weekLength), now)
-	}
 	planDays := s.buildNutritionPlan(user.ID, now)
 
 	data := s.nutritionBaseData(r, "План питания", "nutrition-plan")
@@ -453,6 +444,12 @@ func (s *Site) nutritionPlanMealComplete(w http.ResponseWriter, r *http.Request)
 		http.Redirect(w, r, "/nutrition/plan?error=Некорректный%20день", http.StatusSeeOther)
 		return
 	}
+	today := nutritionDateOnly(time.Now())
+	if dayDate.After(today) {
+		http.Redirect(w, r, "/nutrition/plan?error="+url.QueryEscape("Нельзя отмечать приемы пищи заранее"), http.StatusSeeOther)
+		return
+	}
+	isPostFactum := dayDate.Before(today)
 
 	slot, ok := s.resolveNutritionPlanSlot(user.ID, dayKey, slotKey, time.Now())
 	if !ok {
@@ -460,15 +457,26 @@ func (s *Site) nutritionPlanMealComplete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := s.upsertNutritionMealStatus(user.ID, dayDate, dayKey, slotKey, slot, "completed", ""); err != nil {
+	statusToSave := "completed"
+	if isPostFactum {
+		statusToSave = "completed_post_factum"
+	}
+	if err := s.upsertNutritionMealStatus(user.ID, dayDate, dayKey, slotKey, slot, statusToSave, ""); err != nil {
 		http.Redirect(w, r, "/nutrition/plan?error=Не%20удалось%20сохранить%20статус", http.StatusSeeOther)
 		return
 	}
 
-	s.insertNutritionEvent(user.ID, "Выполнен прием пищи: "+slot.SlotLabel+" ("+slot.MealName+").")
-	s.insertNutritionDayEvent(user.ID, dayKey, "meal_completed", slotKey, dayDate, map[string]any{
+	eventType := "meal_completed"
+	eventMessage := "Выполнен прием пищи: " + slot.SlotLabel + " (" + slot.MealName + ")."
+	if isPostFactum {
+		eventType = "meal_completed_post_factum"
+		eventMessage = "Post factum: выполнен прием пищи за " + dayDate.Format("02.01.2006") + ": " + slot.SlotLabel + " (" + slot.MealName + ")."
+	}
+	s.insertNutritionEvent(user.ID, eventMessage)
+	s.insertNutritionDayEvent(user.ID, dayKey, eventType, slotKey, dayDate, map[string]any{
 		"meal_id":   slot.MealID,
 		"meal_name": slot.MealName,
+		"post_factum": isPostFactum,
 	})
 	awardedDayPoints, progressErr := s.refreshNutritionDayProgress(user.ID, dayKey, dayDate)
 	if progressErr != nil {
@@ -478,6 +486,9 @@ func (s *Site) nutritionPlanMealComplete(w http.ResponseWriter, r *http.Request)
 	}
 
 	success := "Отмечено: «" + slot.SlotLabel + "» выполнен"
+	if isPostFactum {
+		success = "Отмечено post factum: «" + slot.SlotLabel + "» за " + dayDate.Format("02.01.2006") + " (без начисления баллов)"
+	}
 	if awardedDayPoints > 0 {
 		success += " (+" + fmt.Sprintf("%d", awardedDayPoints) + " баллов за полностью закрытый день)"
 		s.insertNutritionEvent(user.ID, "День питания закрыт полностью: начислено +"+fmt.Sprintf("%d", awardedDayPoints)+" баллов.")
@@ -843,7 +854,7 @@ func (s *Site) upsertNutritionMealStatus(userID string, dayDate time.Time, dayKe
 			$1, $2, $3, $4, $5, $6,
 			$7, $8, $9, $10,
 			$11, $12, $13,
-			case when $11 = 'completed' then now() else null end,
+			case when $11 in ('completed', 'completed_post_factum') then now() else null end,
 			case when $11 = 'skipped' then now() else null end,
 			now()
 		 )
@@ -858,7 +869,7 @@ func (s *Site) upsertNutritionMealStatus(userID string, dayDate time.Time, dayKe
 		               status = excluded.status,
 		               planned_time = excluded.planned_time,
 		               smart_swap_from_meal_id = excluded.smart_swap_from_meal_id,
-		               completed_at = case when excluded.status = 'completed' then now() else null end,
+		               completed_at = case when excluded.status in ('completed', 'completed_post_factum') then now() else null end,
 		               skipped_at = case when excluded.status = 'skipped' then now() else null end,
 		               updated_at = now()`,
 		userID,
@@ -880,6 +891,8 @@ func (s *Site) upsertNutritionMealStatus(userID string, dayDate time.Time, dayKe
 
 func (s *Site) refreshNutritionDayProgress(userID, dayKey string, dayDate time.Time) (int, error) {
 	dayDate = nutritionDateOnly(dayDate)
+	today := nutritionDateOnly(time.Now())
+	canAwardToday := dayDate.Equal(today)
 	var previousDayCompleted bool
 	var previousPointsAwarded bool
 	_ = s.DB.QueryRow(
@@ -942,7 +955,7 @@ func (s *Site) refreshNutritionDayProgress(userID, dayKey string, dayDate time.T
 	}
 
 	awardedDayPoints := 0
-	if dayCompleted && !previousPointsAwarded {
+	if dayCompleted && !previousPointsAwarded && canAwardToday {
 		if awarded, pointsErr := s.applyNutritionPointsChangeWithDailyCap(
 			userID,
 			dayDate,
@@ -977,7 +990,7 @@ func (s *Site) refreshNutritionDayProgress(userID, dayKey string, dayDate time.T
 		}
 	}
 
-	if dayCompleted {
+	if dayCompleted && canAwardToday {
 		comboSourceID := dayDate.Format("2006-01-02") + ":combo"
 		if s.nutritionDayHydrationComboCompleted(userID, dayKey, dayDate) &&
 			!s.nutritionPositiveAwardExists(userID, "day_combo", "nutrition_day_progress", comboSourceID) {
@@ -1158,11 +1171,13 @@ func (s *Site) ensureNutritionMissedDayCompletionRewards(userID string, awardDay
 		`select day_date
 		 from nutrition_day_progress
 		 where user_id = $1
+		   and day_date = $2
 		   and day_completed = true
 		   and coalesce(points_awarded, false) = false
 		 order by day_date asc
-		 limit $2`,
+		 limit $3`,
 		userID,
+		awardDay,
 		limit,
 	)
 	if err != nil {
@@ -1372,6 +1387,7 @@ func applyNutritionAssignments(
 					slot.Carbs = rec.Meal.Carbs
 					slot.Fats = rec.Meal.Fats
 					slot.Status = normalizeNutritionMealStatus(rec.Status)
+					slot.PostFactum = nutritionIsPostFactumMealStatus(rec.Status)
 					if strings.TrimSpace(rec.PlannedTime) != "" {
 						slot.PlannedTime = strings.TrimSpace(rec.PlannedTime)
 					}
@@ -1411,6 +1427,10 @@ func applyNutritionAssignments(
 				now,
 				reminderSettings.MealSLAMinutes,
 			)
+			if slot.PostFactum {
+				slot.ReminderStatus = "Post factum"
+				slot.ReminderHint = "Отмечено после даты плана, баллы не начисляются"
+			}
 			if slot.Status == "completed" {
 				completedSlots++
 			}
@@ -2202,11 +2222,17 @@ func normalizeNutritionMealStatus(status string) string {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "completed":
 		return "completed"
+	case "completed_post_factum":
+		return "completed"
 	case "skipped":
 		return "skipped"
 	default:
 		return "planned"
 	}
+}
+
+func nutritionIsPostFactumMealStatus(status string) bool {
+	return strings.EqualFold(strings.TrimSpace(status), "completed_post_factum")
 }
 
 func nutritionPathWithMessage(path, key, message string) string {
