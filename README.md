@@ -71,7 +71,7 @@ go run .
 Система будет доступна на `http://localhost:8080`.
 
 ## Тестовые учетные записи (при `SEED_DATA=true`)
-- Сотрудник: `10001` / `password` (Иван Петров)
+- Сотрудник: `10001` / `password1` (Иван Петров)
 - Сотрудник: `20001` / `password` (Мария Соколова)
 - Руководитель: `30001` / `password` (Алексей Орлов)
 - Администратор: `90000` / `password` (Администратор)
@@ -87,13 +87,13 @@ go run .
 | `COOKIE_NAME` | `rehab_session` | Имя cookie сессии |
 | `COOKIE_SECURE` | `false` | Передавать cookie только по HTTPS |
 | `SESSION_TTL` | `168h` | Время жизни сессии |
-| `APP_ENV` | `development` | Окружение приложения |
 
 ## Миграции и данные
 - миграции применяются автоматически при старте, если `RUN_MIGRATIONS=true`;
 - файлы миграций применяются в лексикографическом порядке из каталога `migrations/`;
 - актуальный набор миграций:
   - `001_init.sql`
+- `001_init.sql` содержит только безопасные (additive) изменения без `DROP TABLE`;
 - тестовые данные загружаются из `internal/db/seed.go`.
 
 ## Ключевые маршруты
@@ -152,8 +152,14 @@ docker-compose.yml # локальный PostgreSQL
 go test ./...
 ```
 
+Интеграционные сценарии (отдельно, только для тестовой БД):
+```bash
+TEST_DATABASE_URL=postgres://rehab:rehab@localhost:5432/rehab_app_test?sslmode=disable go test -tags=integration ./internal/site -run TestFunctionalScenarios
+```
+
 Для production-контура рекомендуется:
 - `COOKIE_SECURE=true`;
+- включить HTTPS на уровне ingress/reverse proxy;
 - отдельная БД и отдельные учетные данные;
 - создание учётных записей только через контур администратора;
 - регулярные бэкапы PostgreSQL;

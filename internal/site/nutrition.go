@@ -474,8 +474,8 @@ func (s *Site) nutritionPlanMealComplete(w http.ResponseWriter, r *http.Request)
 	}
 	s.insertNutritionEvent(user.ID, eventMessage)
 	s.insertNutritionDayEvent(user.ID, dayKey, eventType, slotKey, dayDate, map[string]any{
-		"meal_id":   slot.MealID,
-		"meal_name": slot.MealName,
+		"meal_id":     slot.MealID,
+		"meal_name":   slot.MealName,
 		"post_factum": isPostFactum,
 	})
 	awardedDayPoints, progressErr := s.refreshNutritionDayProgress(user.ID, dayKey, dayDate)

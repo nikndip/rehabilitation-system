@@ -141,6 +141,7 @@
     <div class="card-title">Напоминания</div>
   </div>
   <form class="form" method="post" action="/nutrition/profile/reminders">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
     <div class="grid cols-3">
       <div class="form-group">
         <label>Напомнить до приема (минут)</label>
@@ -217,6 +218,7 @@
           <td>
             {{ if .CanUse }}
               <form method="post" action="/nutrition/profile/redemptions/{{ .ID }}/use">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
                 <button class="button secondary" type="submit">Использовать</button>
               </form>
             {{ else }}

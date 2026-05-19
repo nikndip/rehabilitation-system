@@ -410,35 +410,6 @@ func (s *Site) adminNutritionMealCreate(w http.ResponseWriter, r *http.Request) 
 	http.Redirect(w, r, "/admin/nutrition?success="+url.QueryEscape("Новое блюдо добавлено в библиотеку"), http.StatusSeeOther)
 }
 
-func (s *Site) adminNutritionRedemptionUse(w http.ResponseWriter, r *http.Request) {
-	redemptionID := normalizeResourceID(chi.URLParam(r, "id"))
-	if redemptionID == "" {
-		http.Redirect(w, r, "/admin/nutrition?error=Поощрение%20не%20найдено", http.StatusSeeOther)
-		return
-	}
-
-	var userID string
-	var title string
-	err := s.DB.QueryRow(
-		`update nutrition_reward_redemptions
-		 set status = 'used', used_at = now()
-		 where id = $1 and status = 'issued'
-		 returning user_id, reward_title`,
-		redemptionID,
-	).Scan(&userID, &title)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Redirect(w, r, "/admin/nutrition?error=Поощрение%20уже%20использовано%20или%20недоступно", http.StatusSeeOther)
-			return
-		}
-		http.Redirect(w, r, "/admin/nutrition?error=Не%20удалось%20обновить%20статус", http.StatusSeeOther)
-		return
-	}
-
-	s.insertNutritionEvent(userID, "Поощрение «"+title+"» отмечено как использованное администратором.")
-	http.Redirect(w, r, "/admin/nutrition?success="+url.QueryEscape("Статус поощрения обновлен"), http.StatusSeeOther)
-}
-
 func (s *Site) loadAdminNutritionEmployee(userID string) (adminNutritionEmployeeCard, bool) {
 	var employee adminNutritionEmployeeCard
 	err := s.DB.QueryRow(

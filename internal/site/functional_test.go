@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package site_test
 
 import (
@@ -233,10 +236,16 @@ func TestFunctionalScenarios(t *testing.T) {
 func buildFunctionalServer(t *testing.T) string {
 	t.Helper()
 
+	testDatabaseURL := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
+	if testDatabaseURL == "" {
+		t.Skip("functional tests are skipped: TEST_DATABASE_URL is not set")
+	}
+
 	cfg := config.Load()
+	cfg.DatabaseURL = testDatabaseURL
 	dbConn, err := dbpkg.Open(cfg.DatabaseURL)
 	if err != nil {
-		t.Skipf("functional tests are skipped: database is unavailable (%v)", err)
+		t.Skipf("functional tests are skipped: test database is unavailable (%v)", err)
 	}
 	t.Cleanup(func() {
 		_ = dbConn.Close()
@@ -284,7 +293,6 @@ func buildFunctionalServer(t *testing.T) string {
 		DB:         dbConn,
 		CookieName: cfg.CookieName,
 		SessionTTL: cfg.SessionTTL,
-		Secure:     false,
 	}
 
 	router := chi.NewRouter()
@@ -292,6 +300,10 @@ func buildFunctionalServer(t *testing.T) string {
 	router.Use(middleware.StripSlashes)
 	router.Use(appmiddleware.Logger)
 	router.Use(appmiddleware.Recover)
+	router.Use((&appmiddleware.CSRFManager{
+		CookieName: cfg.CookieName + "_csrf",
+		Secure:     false,
+	}).Protect)
 	router.Handle("/assets/*", web.StaticHandler())
 	router.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir(filepath.Join(rootDir, "uploads")))))
 	router.Mount("/", site.New(dbConn, renderer, sessions, cfg).Router())
@@ -341,12 +353,25 @@ func newFunctionalClient(t *testing.T) *http.Client {
 
 func mustFormRequest(t *testing.T, client *http.Client, method, target string, form url.Values) (*http.Response, string) {
 	t.Helper()
+
+	if strings.EqualFold(method, http.MethodPost) {
+		ensureCSRFCookie(t, client, target)
+		token := csrfTokenFromJar(client, target)
+		if token == "" {
+			t.Fatalf("csrf token is missing for %s", target)
+		}
+		form.Set("_csrf", token)
+	}
+
 	body := strings.NewReader(form.Encode())
 	req, err := http.NewRequest(method, target, body)
 	if err != nil {
 		t.Fatalf("create form request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if strings.EqualFold(method, http.MethodPost) {
+		req.Header.Set("X-CSRF-Token", form.Get("_csrf"))
+	}
 	return doRequest(t, client, req)
 }
 
@@ -355,6 +380,14 @@ func mustRequest(t *testing.T, client *http.Client, method, target string, body 
 	req, err := http.NewRequest(method, target, body)
 	if err != nil {
 		t.Fatalf("create request: %v", err)
+	}
+	if isUnsafeMethod(method) {
+		ensureCSRFCookie(t, client, target)
+		token := csrfTokenFromJar(client, target)
+		if token == "" {
+			t.Fatalf("csrf token is missing for %s", target)
+		}
+		req.Header.Set("X-CSRF-Token", token)
 	}
 	return doRequest(t, client, req)
 }
@@ -377,4 +410,56 @@ func doRequest(t *testing.T, client *http.Client, req *http.Request) (*http.Resp
 
 	resp.Body = io.NopCloser(strings.NewReader(string(data)))
 	return resp, string(data)
+}
+
+func ensureCSRFCookie(t *testing.T, client *http.Client, target string) {
+	t.Helper()
+
+	if csrfTokenFromJar(client, target) != "" {
+		return
+	}
+
+	baseURL, err := url.Parse(target)
+	if err != nil {
+		t.Fatalf("parse target url: %v", err)
+	}
+	baseURL.Path = "/login"
+	baseURL.RawQuery = ""
+	baseURL.Fragment = ""
+
+	req, err := http.NewRequest(http.MethodGet, baseURL.String(), nil)
+	if err != nil {
+		t.Fatalf("create csrf bootstrap request: %v", err)
+	}
+	resp, _ := doRequest(t, client, req)
+	_ = resp.Body.Close()
+
+	if csrfTokenFromJar(client, target) == "" {
+		t.Fatalf("csrf bootstrap failed for %s", target)
+	}
+}
+
+func csrfTokenFromJar(client *http.Client, target string) string {
+	if client == nil || client.Jar == nil {
+		return ""
+	}
+	targetURL, err := url.Parse(target)
+	if err != nil {
+		return ""
+	}
+	for _, cookie := range client.Jar.Cookies(targetURL) {
+		if strings.HasSuffix(cookie.Name, "_csrf") && strings.TrimSpace(cookie.Value) != "" {
+			return strings.TrimSpace(cookie.Value)
+		}
+	}
+	return ""
+}
+
+func isUnsafeMethod(method string) bool {
+	switch strings.ToUpper(strings.TrimSpace(method)) {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		return true
+	default:
+		return false
+	}
 }

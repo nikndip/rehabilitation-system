@@ -42,6 +42,10 @@ func main() {
 	router.Use(middleware.StripSlashes)
 	router.Use(appmiddleware.Logger)
 	router.Use(appmiddleware.Recover)
+	router.Use((&appmiddleware.CSRFManager{
+		CookieName: cfg.CookieName + "_csrf",
+		Secure:     cfg.CookieSecure,
+	}).Protect)
 
 	renderer, err := web.NewRenderer()
 	if err != nil {
@@ -52,7 +56,6 @@ func main() {
 		DB:         database,
 		CookieName: cfg.CookieName,
 		SessionTTL: cfg.SessionTTL,
-		Secure:     cfg.CookieSecure,
 	}
 
 	router.Handle("/assets/*", web.StaticHandler())

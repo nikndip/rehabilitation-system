@@ -19,6 +19,7 @@
     <div class="card-title">Начислить дополнительные баллы</div>
   </div>
   <form class="form" method="post" action="/manager/nutrition/points/award">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
     <div class="grid cols-3">
       <div class="form-group">
         <label>Сотрудник отдела</label>

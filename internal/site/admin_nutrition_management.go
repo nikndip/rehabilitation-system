@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-
-	"rehab-app/internal/middleware"
 )
 
 type adminNutritionAchievementCatalogRow struct {
@@ -30,16 +28,16 @@ type adminNutritionAchievementCatalogRow struct {
 }
 
 type adminNutritionAchievementProgressRow struct {
-	UserID            string
-	UserName          string
-	EmployeeID        string
-	AchievementTitle  string
-	Progress          int
-	Target            int
-	Unlocked          bool
-	UnlockedAt        string
-	UpdatedAt         string
-	ProgressPercent   int
+	UserID           string
+	UserName         string
+	EmployeeID       string
+	AchievementTitle string
+	Progress         int
+	Target           int
+	Unlocked         bool
+	UnlockedAt       string
+	UpdatedAt        string
+	ProgressPercent  int
 }
 
 type adminNutritionPointsEmployeeRow struct {
@@ -252,63 +250,6 @@ func (s *Site) adminNutritionPointsPage(w http.ResponseWriter, r *http.Request) 
 	data["Employees"] = s.loadNutritionPointsEmployees()
 	data["Ledger"] = s.loadNutritionPointsLedger(200)
 	s.render(w, "admin_nutrition_points", data)
-}
-
-func (s *Site) adminNutritionPointsAdjust(w http.ResponseWriter, r *http.Request) {
-	admin := middleware.UserFromContext(r.Context())
-	if admin == nil {
-		http.Error(w, "Доступ запрещён", http.StatusForbidden)
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/admin/nutrition/points?error=Некорректные%20данные%20формы", http.StatusSeeOther)
-		return
-	}
-
-	userID := normalizeResourceID(r.FormValue("user_id"))
-	if userID == "" {
-		http.Redirect(w, r, "/admin/nutrition/points?error=Выберите%20сотрудника", http.StatusSeeOther)
-		return
-	}
-	delta, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("delta")))
-	if delta == 0 {
-		http.Redirect(w, r, "/admin/nutrition/points?error=Укажите%20ненулевое%20значение%20баллов", http.StatusSeeOther)
-		return
-	}
-	if delta < -10000 || delta > 10000 {
-		http.Redirect(w, r, "/admin/nutrition/points?error=Слишком%20большое%20изменение%20баллов", http.StatusSeeOther)
-		return
-	}
-
-	reason := strings.TrimSpace(r.FormValue("reason"))
-	if reason == "" {
-		reason = "Корректировка баллов администратором"
-	}
-
-	_, err := s.applyNutritionPointsChange(
-		userID,
-		delta,
-		"admin_adjustment",
-		reason,
-		"admin_nutrition",
-		"",
-		admin.ID,
-	)
-	if err != nil {
-		if errors.Is(err, errNutritionInsufficientPoints) {
-			http.Redirect(w, r, "/admin/nutrition/points?error=Недостаточно%20баллов%20для%20списания", http.StatusSeeOther)
-			return
-		}
-		http.Redirect(w, r, "/admin/nutrition/points?error=Не%20удалось%20изменить%20баллы", http.StatusSeeOther)
-		return
-	}
-
-	changeSign := "+"
-	if delta < 0 {
-		changeSign = ""
-	}
-	s.insertNutritionEvent(userID, "Баллы питания скорректированы администратором: "+changeSign+strconv.Itoa(delta)+".")
-	http.Redirect(w, r, "/admin/nutrition/points?success="+url.QueryEscape("Баллы сотрудника обновлены"), http.StatusSeeOther)
 }
 
 func (s *Site) loadNutritionPointsEmployees() []adminNutritionPointsEmployeeRow {

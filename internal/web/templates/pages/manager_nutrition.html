@@ -86,10 +86,12 @@
           <td>{{ if .ManagerComment }}{{ .ManagerComment }}{{ else }}—{{ end }}</td>
           <td>
             <form method="post" action="/manager/nutrition/reward-requests/{{ .ID }}/approve" class="inline-form" style="margin-bottom: 6px;">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
               <input name="comment" placeholder="Комментарий (опц.)" />
               <button class="button success" type="submit">Одобрить</button>
             </form>
             <form method="post" action="/manager/nutrition/reward-requests/{{ .ID }}/reject" class="inline-form">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
               <input name="comment" placeholder="Причина отклонения" />
               <button class="button danger" type="submit">Отклонить</button>
             </form>

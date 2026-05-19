@@ -140,9 +140,10 @@ func (s *Site) Router() chi.Router {
 func (s *Site) baseData(r *http.Request, title, active string) map[string]any {
 	user := middleware.UserFromContext(r.Context())
 	data := map[string]any{
-		"Title":  title,
-		"Active": active,
-		"User":   user,
+		"Title":     title,
+		"Active":    active,
+		"User":      user,
+		"CSRFToken": middleware.CSRFTokenFromContext(r.Context()),
 	}
 	if user != nil {
 		notifications := s.loadNotifications(user.ID)

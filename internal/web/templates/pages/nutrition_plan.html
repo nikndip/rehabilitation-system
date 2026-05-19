@@ -117,16 +117,19 @@
               <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
                 <a class="button secondary" href="/nutrition/meals?day={{ $day.DayKey }}&slot={{ .Meal.SlotKey }}&category={{ urlquery .Meal.SlotLabel }}&return_to={{ urlquery "/nutrition/plan" }}">Выбрать другое</a>
                 <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .Meal.SlotKey }}/complete">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
                   <button class="button {{ if eq .Meal.Status "completed" }}success{{ else }}primary{{ end }}" type="submit" {{ if eq .Meal.Status "completed" }}disabled{{ end }}>
                     {{ if eq .Meal.Status "completed" }}{{ if .Meal.PostFactum }}Post factum{{ else }}Выполнено{{ end }}{{ else }}Поел{{ end }}
                   </button>
                 </form>
                 <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .Meal.SlotKey }}/skip">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
                   <button class="button {{ if eq .Meal.Status "skipped" }}danger{{ else }}secondary{{ end }}" type="submit">
                     {{ if eq .Meal.Status "skipped" }}Пропущено{{ else }}Пропустил{{ end }}
                   </button>
                 </form>
                 <form method="post" action="/nutrition/plan/{{ $day.DayKey }}/{{ .Meal.SlotKey }}/smart-replace">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
                   <button class="button secondary" type="submit" {{ if eq .Meal.Status "completed" }}disabled{{ end }}>Умная замена</button>
                 </form>
               </div>
@@ -155,11 +158,13 @@
               {{ end }}
               <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
                 <form method="post" action="/nutrition/plan/hydration/{{ $day.DayKey }}/{{ .Hydration.ReminderKey }}/complete">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
                   <button class="button {{ if or (eq .Hydration.StatusCode "completed") (eq .Hydration.StatusCode "completed_post_factum") }}success{{ else }}primary{{ end }}" type="submit" {{ if or (eq .Hydration.StatusCode "completed") (eq .Hydration.StatusCode "completed_post_factum") }}disabled{{ end }}>
                     {{ if eq .Hydration.StatusCode "completed" }}Выполнено{{ else if eq .Hydration.StatusCode "completed_post_factum" }}Post factum{{ else }}Выполнить{{ end }}
                   </button>
                 </form>
                 <form method="post" action="/nutrition/plan/hydration/{{ $day.DayKey }}/{{ .Hydration.ReminderKey }}/clear">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
                   <button class="button {{ if eq .Hydration.StatusCode "cleared" }}warning{{ else }}secondary{{ end }}" type="submit" {{ if eq .Hydration.StatusCode "cleared" }}disabled{{ end }}>
                     {{ if eq .Hydration.StatusCode "cleared" }}Очищено{{ else }}Очистить{{ end }}
                   </button>

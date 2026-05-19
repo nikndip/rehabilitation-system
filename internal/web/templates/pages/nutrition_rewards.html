@@ -45,6 +45,7 @@
         <span class="badge warning">Лимит заявок исчерпан</span>
       {{ else if ge $.Points .PointsCost }}
         <form method="post" action="/nutrition/rewards/{{ .ID }}/redeem">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
           <button class="button primary" type="submit">Отправить заявку на получение</button>
         </form>
       {{ else }}

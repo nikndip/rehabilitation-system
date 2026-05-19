@@ -23,6 +23,7 @@
     <div class="card-title">Создать достижение</div>
   </div>
   <form class="form" method="post" action="/admin/nutrition/achievements">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
     <div class="grid cols-3">
       <div class="form-group">
         <label>Код</label>
@@ -86,6 +87,7 @@
   <div class="grid" style="gap: 14px;">
     {{ range .Catalog }}
       <form class="card softer form" method="post" action="/admin/nutrition/achievements/{{ .ID }}/update">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
         <input type="hidden" name="code" value="{{ .Code }}" />
         <div class="grid cols-3">
           <div class="form-group">

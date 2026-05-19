@@ -14,7 +14,6 @@ type SessionManager struct {
 	DB         *sql.DB
 	CookieName string
 	SessionTTL time.Duration
-	Secure     bool
 }
 
 func (s *SessionManager) Load(next http.Handler) http.Handler {

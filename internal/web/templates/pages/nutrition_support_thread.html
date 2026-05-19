@@ -73,6 +73,7 @@
       <div class="notice">Обращение закрыто. Для продолжения создайте новое обращение.</div>
     {{ else }}
       <form method="post" action="/nutrition/support/{{ .Ticket.ID }}/messages" class="form">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
         <div class="form-group">
           <label>Текст сообщения</label>
           <textarea name="message" rows="5" maxlength="4000" required></textarea>
@@ -92,6 +93,7 @@
     </div>
     {{ if ne .Ticket.Status "closed" }}
       <form method="post" action="/nutrition/support/{{ .Ticket.ID }}/close">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
         <button class="button secondary" type="submit">Закрыть обращение</button>
       </form>
     {{ else }}

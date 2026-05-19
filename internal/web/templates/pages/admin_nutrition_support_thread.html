@@ -74,6 +74,7 @@
       <div class="notice">Обращение закрыто. Чтобы продолжить диалог, переведите статус в «Открыто».</div>
     {{ else }}
       <form method="post" action="/admin/nutrition/support/{{ .Ticket.ID }}/messages" class="form">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
         <div class="form-group">
           <label>Текст ответа</label>
           <textarea name="message" rows="5" maxlength="4000" required></textarea>
@@ -88,6 +89,7 @@
       <div class="card-title">Статус обращения</div>
     </div>
     <form method="post" action="/admin/nutrition/support/{{ .Ticket.ID }}/status" class="form">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
       <div class="form-group">
         <label>Новый статус</label>
         <select name="status">

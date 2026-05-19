@@ -1,30 +1,8 @@
 -- +migrate Up
 create extension if not exists "uuid-ossp";
 
--- Remove legacy/training entities to keep nutrition-only schema.
-drop table if exists workout_session_feedback cascade;
-drop table if exists workout_session_sets cascade;
-drop table if exists workout_session_exercises cascade;
-drop table if exists workout_sessions cascade;
-drop table if exists training_plan_changes cascade;
-drop table if exists training_plan_workouts cascade;
-drop table if exists training_plans cascade;
-drop table if exists user_programs cascade;
-drop table if exists program_workouts cascade;
-drop table if exists programs cascade;
-drop table if exists workout_exercises cascade;
-drop table if exists workouts cascade;
-drop table if exists exercises cascade;
-drop table if exists user_achievements cascade;
-drop table if exists achievements cascade;
-drop table if exists reward_redemptions cascade;
-drop table if exists rewards cascade;
-drop table if exists support_ticket_messages cascade;
-drop table if exists support_tickets cascade;
-drop table if exists questionnaire_responses cascade;
-drop table if exists medical_info cascade;
-drop table if exists incentive_awards cascade;
-drop table if exists password_reset_requests cascade;
+-- Destructive cleanup of legacy/training tables is intentionally excluded.
+-- Keep this migration strictly additive and safe for auto-run.
 
 create table if not exists users (
   id uuid primary key default uuid_generate_v4(),

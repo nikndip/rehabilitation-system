@@ -31,6 +31,7 @@
       <div><strong>Баллы питания:</strong> {{ .Employee.Points }}</div>
     </div>
     <form method="post" action="/admin/nutrition/employees/{{ .Employee.ID }}/email" class="form" style="margin-top: 12px;">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
       <div class="form-group">
         <label>Корпоративная почта</label>
         <input type="email" name="corporate_email" value="{{ .Employee.CorporateEmail }}" placeholder="name@company.ru" />
@@ -44,6 +45,7 @@
       <div class="card-title">Настройки напоминаний</div>
     </div>
     <form method="post" action="/admin/nutrition/employees/{{ .Employee.ID }}/reminders" class="form">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
       <div class="form-grid">
         <div class="form-group">
           <label>Лид напоминания (минут до приема)</label>
@@ -121,6 +123,7 @@
     <div class="card-title">Ручная корректировка плана питания</div>
   </div>
   <form class="inline-form" method="post" action="/admin/nutrition/employees/{{ .Employee.ID }}/plan/assign">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
     <select name="day" required>
       <option value="">День</option>
       {{ range .DayOptions }}
@@ -188,6 +191,7 @@
 </div>
 
 <form method="post" action="/admin/nutrition/employees/{{ .Employee.ID }}/questionnaire" class="form" style="margin-bottom: 24px;">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
   <div class="card" style="margin-bottom: 16px;">
     <div class="card-header">
       <div class="card-title">Анкета питания сотрудника</div>

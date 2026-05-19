@@ -12,7 +12,6 @@ type Config struct {
 	SessionTTL    time.Duration
 	CookieName    string
 	CookieSecure  bool
-	Environment   string
 	RunMigrations bool
 	SeedData      bool
 }
@@ -25,7 +24,6 @@ func Load() Config {
 		SessionTTL:    getDuration("SESSION_TTL", 24*time.Hour*7),
 		CookieName:    getEnv("COOKIE_NAME", "rehab_session"),
 		CookieSecure:  getEnvBool("COOKIE_SECURE", false),
-		Environment:   getEnv("APP_ENV", "development"),
 		RunMigrations: getEnvBool("RUN_MIGRATIONS", true),
 		SeedData:      getEnvBool("SEED_DATA", false),
 	}

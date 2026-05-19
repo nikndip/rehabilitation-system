@@ -88,6 +88,7 @@
     <div class="card-title">Добавление нового блюда в библиотеку</div>
   </div>
   <form class="form" method="post" action="/admin/nutrition/meals">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
     <div class="form-grid">
       <div class="form-group">
         <label>Название блюда</label>

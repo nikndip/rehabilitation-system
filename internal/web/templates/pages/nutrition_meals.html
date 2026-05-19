@@ -76,6 +76,7 @@
         <span class="badge">Ж {{ .Fats }} г</span>
       </div>
       <form method="post" action="/nutrition/meals/{{ .ID }}/assign" style="display:flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center;">
+  <input type="hidden" name="_csrf" value="{{ $.CSRFToken }}" />
         <input type="hidden" name="return_q" value="{{ $.Query }}" />
         <input type="hidden" name="return_category" value="{{ $.Category }}" />
         {{ if $.ReturnTo }}
